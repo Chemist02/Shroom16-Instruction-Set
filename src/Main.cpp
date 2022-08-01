@@ -110,10 +110,16 @@ void findConstantsAndLabels(std::ifstream &sourceFile) {
 	sourceFile.seekg(0);
 }
 
-void saveSchematic(const std::vector<Instruction> &machineCode, std::ofstream &outFile) {
+// Write machine code data to gzip file data buffer one byte at a time (from the zlib library) then, if all goes 
+// according to plan, actually write the data buffer to the file. Requires that the outFile is a valid zlib gzip file.
+// Throws an excpetion if byte of data could not be wirtten or if we cannot flush teh data buffer to the file.
+void saveSchematic(const std::vector<Instruction> &machineCode, gzFile outFile) {
 	// Write header of our schematic file, which sets everything up. This is the same for every program.
 	for (BYTE byte : I_MEM_HEADER) {
-		outFile.put(byte);
+		// Ensure one and only one (onee) byte is written to the file. If not throw an exception.
+		if (gzwrite(outFile, (voidpc)&byte, 1u) != 1u) {	
+			throw std::runtime_error("Issue writing machine code byte to gzip data buffer!");
+		}
 	}
 
 	// Write the block data.
@@ -132,12 +138,23 @@ void saveSchematic(const std::vector<Instruction> &machineCode, std::ofstream &o
 
 	// Now actually write the block data body,
 	for (BYTE byte : body) {
-		outFile.put(byte);
+		// Ensure one and only one (onee) byte is written to the file. If not throw an exception.
+		if (gzwrite(outFile, (voidpc)&byte, 1u) != 1u) {	
+			throw std::runtime_error("Issue writing machine code byte to gzip data buffer!");
+		}
 	}
 
 	// Write footer of our schematic file. This is the same for every file.
 	for (BYTE byte : I_MEM_FOOTER) {
-		outFile.put(byte);
+		// Ensure one and only one (onee) byte is written to the file. If not throw an exception.
+		if (gzwrite(outFile, (voidpc)&byte, 1u) != 1u) {	
+			throw std::runtime_error("Issue writing machine code byte to gzip data buffer!");
+		}
+	}
+	
+	// Actually flush data buffer to gzip file. Throw exception if we fail.
+	if (gzflush(outFile, Z_FINISH) != Z_OK) {
+		throw std::runtime_error("Issue writing gzip data buffer to file!");	
 	}
 }
 
@@ -194,12 +211,6 @@ int main(int argc, char *argv[]) {
 				<< usagemessage;
 			return -1;
 		}
-	}
-
-	// Open output file for binary writing.
-	std::ofstream outFile(outFileName, std::ios::binary);
-	if (!outFile.good()) {
-		std::cerr << "Error: Issue opening output file " << outFileName << "!\n";
 	}
 
 	// First pass through file; find and define constants and labels.
@@ -259,20 +270,44 @@ int main(int argc, char *argv[]) {
 	// Minecraft.
 	// Handle case for virtual machine.
 	if (!doOutputSchem) {
+		// Open output c++ file stream for creating assembled program for the virtual machine.
+		std::ofstream outFile(outFileName);
+		if (!outFile.good()) {
+			std::cerr << "Error: Issue opening output file " << outFileName << "!\n";
+			return -1;
+		}
+
 		for (Instruction instruction : machineCode) {
 			instruction.writeToFile(outFile);
 		}
+
+		outFile.close();
 	}
 	// Handle case for in-game pasting.
 	else {
+		// Open output gzip file for creating schematics.	
+		gzFile outFile = (gzFile)gzopen(outFileName.c_str(), "wb");
+		// Make sure file was successfully opened.
+		if (outFile == NULL) {
+			std::cerr << "Error: Issue opening output file " << outFileName << "!\n";
+			return -1;
+		}
+
+		// Fill used instructions with zeros.
 		machineCode.resize(INSTRUCTION_MEMORY_SIZE);
-		saveSchematic(machineCode, outFile);	
+		try {
+			// Set up and write schematic file.
+			saveSchematic(machineCode, outFile);
+		}
+		catch (std::exception &e) {
+			std::cerr << "Error: " << e.what() << std::endl;
+			return -1;
+		}
+		// Close file handle to gzip file.
+		gzclose(outFile);
 	}
 
 	// Close files.
 	sourceFile.close();
-	outFile.close();
-
-	//gzFile *file = (gZFile*)gzopen("test.gz", "wb");
 	return 0;
 }
