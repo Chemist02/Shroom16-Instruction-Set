@@ -23,6 +23,17 @@ std::string Instruction::formattedAsString() const {
 	return formattedString;
 }
 
+// Returns the data in this instruction from the lower bound to the high bound, inclusive. If either location
+// is out of range or if upper < lower, throw exception.
+unsigned int Instruction::getBitsInRange(unsigned int lower, unsigned int upper) {
+	// Ensure indices are valid.
+	if (upper < lower || (upper - lower) + 1 > INSTRUCTION_SIZE || upper >= INSTRUCTION_SIZE) {
+		throw std::invalid_argument("Bit indices out of range!");
+	}
+
+	return (this->bits & (((~0x0) >> lower) & ((~0x0) << upper)));
+}
+
 // Set bit at locaton i to state. If i is out of range, throw exception,
 void Instruction::setBitState(unsigned int i, bool state) {
 	// Ensure i is within range.

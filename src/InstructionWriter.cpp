@@ -10,8 +10,8 @@ const std::map<std::string, std::function<void(Instruction&, const std::vector<s
 		InstructionWriter::mnemonicToWriteFuncts = {
 	{"add", InstructionWriter::writeRType3},
 	{"sub", InstructionWriter::writeRType3},
-	{"mul", InstructionWriter::writeRType2},
-	{"div", InstructionWriter::writeRType2},
+	{"mul", InstructionWriter::writeRType3},
+	{"div", InstructionWriter::writeRType3},
 	{"sll", InstructionWriter::writeRType3},
 	{"srl", InstructionWriter::writeRType3},
 	{"nor", InstructionWriter::writeRType3},
@@ -27,18 +27,21 @@ const std::map<std::string, std::function<void(Instruction&, const std::vector<s
 	{"ori", InstructionWriter::writeIType},
 	{"andi", InstructionWriter::writeIType},
 	{"xori", InstructionWriter::writeIType},
-	{"cmp", InstructionWriter::writeRType2},
+	{"cmp", InstructionWriter::writeRType3},
 	{"jmp", InstructionWriter::writeJType},
-	{"jeq", InstructionWriter::writeJType},
-	{"jlt", InstructionWriter::writeJType},
-	{"jgt", InstructionWriter::writeJType},
+	{"jeq", InstructionWriter::writeCondJType},
+	{"jlt", InstructionWriter::writeCondJType},
+	{"jgt", InstructionWriter::writeCondJType},
 	{"call", InstructionWriter::writeJType},
-	{"jr", InstructionWriter::writeRType1},
-	{"?in", InstructionWriter::writeNothing},
-	{"?out", InstructionWriter::writeRType1},
+	{"jr", InstructionWriter::writeRType1Read},
+	{"random", InstructionWriter::writeRType1Write},
+	{"?in", InstructionWriter::writeRType1Write},
+	{"?out", InstructionWriter::writeRType1Read},
 	{"?end", InstructionWriter::writeNothing},
 	{"?charset", InstructionWriter::writeCharset},
-	{"?pxset", InstructionWriter::writePxset}
+	{"?keyin", InstructionWriter::writeRType1Write},
+	{"?pxset", InstructionWriter::writePxset},
+	{"?clrscrn", InstructionWriter::writeNothing}
 };
 
 // Given a parsed instruction parsedLine, output a machine code version of that instruction to the 
@@ -113,7 +116,7 @@ void InstructionWriter::writeOpcode(Instruction &target, const std::string &mnem
 	if (mnemonicToOpcodeMap.find(mnemonic) == mnemonicToOpcodeMap.end()) {
 		throw std::runtime_error("Invalid instruction mnemonic " + mnemonic + ".");
 	}
-	target.setBitsInRange(0, 4, mnemonicToOpcodeMap.find(mnemonic)->second);
+	target.setBitsInRange(0, 5, mnemonicToOpcodeMap.find(mnemonic)->second);
 }
 
 // Writes a 5 bit register ID to target given a register string and a start index (i.e. where to start writing
@@ -163,8 +166,8 @@ void InstructionWriter::writeLabel(const std::string &label, Instruction &target
 	}
 	addressToWrite = InstructionWriter::labelMap.find(label)->second;
 
-	// Instruction memory is only 256 instructions large, so jump addresses only need to be 8 bits.
-	target.setBitsInRange(5, 12, addressToWrite);
+	// Instruction memory is only 512 instructions large, so jump addresses only need to be 9 bits.
+	target.setBitsInRange(16, 24, addressToWrite);
 }
 
 /* These functions all help us write categories of instruction with similar formats.*/
@@ -178,32 +181,11 @@ void InstructionWriter::writeRType3(Instruction &outInstruction, const std::vect
 	try {
 		// Write registers.
 		// Destination.
-		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 5);
+		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 6);
 		// Read register 1.
-		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 10);
+		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 11);
 		// Read register 2.
-		InstructionWriter::writeRegister(parsedLine[3], outInstruction, 15);
-	}
-	catch (std::exception &e) {
-		throw std::runtime_error(e.what());
-	}
-}
-
-// R type write function (for instructions that take 2 registers and output to $v0 and/or $v1, while padding 
-// bits 5 to 9 with undefined bits).
-void InstructionWriter::writeRType2(Instruction &outInstruction, const std::vector<std::string> &parsedLine) {
-	// Ensure a sufficient number of arguments was given (3 including mnemonic).
-	if (parsedLine.size() != 3) {
-		throw std::runtime_error("Invalid number of arguments.");
-	}
-
-	try {
-		// Write registers.
-		// Destination section is padded with zeros.
-		// Read register 1.
-		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 10);
-		// Read register 2.
-		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 15);
+		InstructionWriter::writeRegister(parsedLine[3], outInstruction, 16);
 	}
 	catch (std::exception &e) {
 		throw std::runtime_error(e.what());
@@ -211,7 +193,7 @@ void InstructionWriter::writeRType2(Instruction &outInstruction, const std::vect
 }
 
 // R type write function (for instructions that take onee (one and only one) read register).
-void InstructionWriter::writeRType1(Instruction &outInstruction, const std::vector<std::string> &parsedLine) {
+void InstructionWriter::writeRType1Read(Instruction &outInstruction, const std::vector<std::string> &parsedLine) {
 	// Ensure a sufficient number of arguments was given (2 including mnemonic).
 	if (parsedLine.size() != 2) {
 		throw std::runtime_error("Invalid number of arguments.");
@@ -221,7 +203,24 @@ void InstructionWriter::writeRType1(Instruction &outInstruction, const std::vect
 		// Write registers.
 		// Destination section is padded with zeros.
 		// Read register 1.
-		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 10);
+		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 11);
+	}
+	catch (std::exception &e) {
+		throw std::runtime_error(e.what());
+	}
+}
+
+// R type write function (for instructions that take onee (one and only one) write register).
+void InstructionWriter::writeRType1Write(Instruction &outInstruction, const std::vector<std::string> &parsedLine) {
+	// Ensure a sufficient number of arguments was given (2 including mnemonic).
+	if (parsedLine.size() != 2) {
+		throw std::runtime_error("Invalid number of arguments.");
+	}
+
+	try {
+		// Write registers.
+		// Read register 1.
+		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 6);
 	}
 	catch (std::exception &e) {
 		throw std::runtime_error(e.what());
@@ -239,15 +238,14 @@ void InstructionWriter::writeIType(Instruction &outInstruction, const std::vecto
 	try {	
 		// Write registers.
 		// Destination.
-		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 5);
+		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 6);
 		// Read register.
-		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 10);
+		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 11);
 
 		// Write immediate value.
-		// Length of immediate value to write. If instruction is lw, only save 8 bits of the immediate value 
-		// (the offset, as data memory is only 256 words long). Else, write 16 bits.
-		unsigned int length = parsedLine[0] == "lw" ? 8u : 16u;
-		InstructionWriter::writeImmediateValue(parsedLine[3], outInstruction, 15, length);
+		// Length of immediate value to write. 
+		unsigned int length = 16u;
+		InstructionWriter::writeImmediateValue(parsedLine[3], outInstruction, 16, length);
 	}
 	catch (std::exception &e) {
 		throw std::runtime_error(e.what());
@@ -270,6 +268,24 @@ void InstructionWriter::writeJType(Instruction &outInstruction, const std::vecto
 	}
 }
 
+// Conditional jump type write function (for instructions that take a jump address (i.e. a label)).
+void InstructionWriter::writeCondJType(Instruction &outInstruction, const std::vector<std::string> &parsedLine) {
+	// Ensure a sufficient number of arguments was given (3 including mnemonic).
+	if (parsedLine.size() != 3) {
+		throw std::runtime_error("Invalid number of arguments.");
+	}
+
+	try {
+		// Write compare result regsiter address.
+		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 11);
+		// Write jump address.
+		InstructionWriter::writeLabel(parsedLine[2], outInstruction);
+	}
+	catch (std::exception &e) {
+		throw std::runtime_error(e.what());
+	}
+}
+
 /* The following write functions didn't seem to fit into any of the other categories, and thus exist on their
    own here*/
 // Write function for save word.
@@ -283,12 +299,35 @@ void InstructionWriter::writeSW(Instruction &outInstruction, const std::vector<s
 		// Write regiters.
 		// Destination section undefined and thus padded with zeros.
 		// Read register 1.
-		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 10);
+		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 11);
 		// Read register 2.
-		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 15);
+		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 16);
 
 		//Write immediate offset value. 
-		InstructionWriter::writeImmediateValue(parsedLine[3], outInstruction, 20, 8);
+		InstructionWriter::writeImmediateValue(parsedLine[3], outInstruction, 21, 8);
+	}
+	catch (std::exception &e) {
+		throw std::runtime_error(e.what());
+	}
+}
+
+// Write function for load word.
+void InstructionWriter::writeLW(Instruction &outInstruction, const std::vector<std::string> &parsedLine) {
+	// Ensure a sufficient number of arguments was given (4 including mnemonic).
+	if (parsedLine.size() != 4) {
+		throw std::runtime_error("Invalid number of arguments.");
+	}
+
+	try {
+		// Write regiters.
+		// Destination section
+		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 6);
+		// Read register 1.
+		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 11);
+		// Read register 2 section padded with zeros.
+
+		//Write immediate offset value. 
+		InstructionWriter::writeImmediateValue(parsedLine[3], outInstruction, 21, 8);
 	}
 	catch (std::exception &e) {
 		throw std::runtime_error(e.what());
@@ -306,10 +345,10 @@ void InstructionWriter::writeCharset(Instruction &outInstruction, const std::vec
 		// Write regiters.
 		// Destination section undefined and thus padded with zeros.
 		// Read register 1.
-		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 10);
+		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 11);
 		
 		//Write character code as immediate value. 
-		InstructionWriter::writeImmediateValue(parsedLine[2], outInstruction, 15, 8);
+		InstructionWriter::writeImmediateValue(parsedLine[2], outInstruction, 16, 8);
 	}
 	catch (std::exception &e) {
 		throw std::runtime_error(e.what());
@@ -327,11 +366,11 @@ void InstructionWriter::writePxset(Instruction &outInstruction, const std::vecto
 		// Write regiters.
 		// Destination section undefined and thus padded with zeros.
 		// Read register 1.
-		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 10);
+		InstructionWriter::writeRegister(parsedLine[1], outInstruction, 11);
 		// Read register 2.
-		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 15);	
+		InstructionWriter::writeRegister(parsedLine[2], outInstruction, 16);	
 		//Write on/off status as immediate value. 
-		InstructionWriter::writeImmediateValue(parsedLine[3], outInstruction, 20, 1);
+		InstructionWriter::writeImmediateValue(parsedLine[3], outInstruction, 21, 1);
 	}
 	catch (std::exception &e) {
 		throw std::runtime_error(e.what());

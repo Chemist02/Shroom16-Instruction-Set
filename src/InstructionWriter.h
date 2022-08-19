@@ -58,12 +58,11 @@ private:
 	// R type write function (for instructions that take 3 registers).
 	static void writeRType3(Instruction &outInstruction, const std::vector<std::string> &parsedLine);
 
-	// R type write function (for instructions that take 2 registers and output to $v0 and/or $v1, while padding 
-	// bits 5 to 9 with undefined bits).
-	static void writeRType2(Instruction &outInstruction, const std::vector<std::string> &parsedLine);
-
 	// R type write function (for instructions that take onee (one and only one) read register).
-	static void writeRType1(Instruction &outInstruction, const std::vector<std::string> &parsedLine);
+	static void writeRType1Read(Instruction &outInstruction, const std::vector<std::string> &parsedLine);
+
+	// R type write function (for instructions that take onee (one and only one) write register).
+	static void writeRType1Write(Instruction &outInstruction, const std::vector<std::string> &parsedLine);
 
 	// I type write function (for instructions that take a destination register, a read register, and a 16-bit 
 	// immediate value).
@@ -72,10 +71,17 @@ private:
 	// J type write function (for instructions that take a jump address (i.e. a label)).
 	static void writeJType(Instruction &outInstruction, const std::vector<std::string> &parsedLine);
 
+	// Conditional jump type write function (for instructions that take a jump address (i.e. a label)).
+	static void writeCondJType(Instruction &outInstruction, const std::vector<std::string> &parsedLine);
+
 	/* The following write functions didn't seem to fit into any of the other categories, and thus exist on their
 	   own here*/
 	// Write function for save word.
 	static void writeSW(Instruction &outInstruction, const std::vector<std::string> &parsedLine);
+
+
+	// Write function for load word.
+	static void writeLW(Instruction &outInstruction, const std::vector<std::string> &parsedLine);
 
 	// Write function for character set interrupt.
 	static void writeCharset(Instruction &outInstruction, const std::vector<std::string> &parsedLine);

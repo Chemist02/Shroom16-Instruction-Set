@@ -4,6 +4,8 @@
 #include <iostream>
 #include <stdexcept>
 
+// Size of instruction memory of the target machine in 4-byte instructions.
+#define INSTRUCTION_MEMORY_SIZE 256u
 //Instruction size in bits.
 #define INSTRUCTION_SIZE 32u
 //Byte size in bits.
@@ -23,6 +25,9 @@ public:
 	// Return this instruction formatted as a string of '1' and '0' characters. Output is little endian, so bit 
 	// index 0 is on the left of the string (string index zero) and is least significant.
 	std::string formattedAsString() const;
+	// Returns the data in this instruction from the lower bound to the high bound, inclusive. If either location 
+	// is out of range or if upper < lower, throw exception.
+	unsigned int getBitsInRange(unsigned int lower, unsigned int upper);
 
 	// Set bit at locaton i to state. If i is out of range, throw exception.
 	void setBitState(unsigned int i, bool state);
