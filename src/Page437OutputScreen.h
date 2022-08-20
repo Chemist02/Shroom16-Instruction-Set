@@ -6,6 +6,7 @@
 #define FONT_HEIGHT 12u
 #define FONT_IMAGE_WIDTH 16u
 #define FONT_IMAGE_HEIGHT 16u
+#define CHAR_FULL 219u
 
 #ifndef OUTPUTSCREEN_H
 #define OUTPUTSCREEN_H
@@ -24,7 +25,7 @@ public:
 	
 	// Set a character in the screen at (x, y) to the specified character, as defined in code page Page437.
 	// If we go out of bounds, throw exception. Requires that the character be defined in code age Page437.
-	void setChar(unsigned int x, unsigned int y, char c, const sf::Color &color);
+	void setChar(unsigned int x, unsigned int y, unsigned char c, const sf::Color &color);
 	// Draw a string to the screen with the speciifed length. If this drawing will result in gojng out of bounds,
 	// throw exception.
 	void drawStringHoriz(unsigned int x, unsigned int y, unsigned int length, const std::string &s, const sf::Color &color);

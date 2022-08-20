@@ -152,7 +152,7 @@ void InstructionWriter::writeImmediateValue(const std::string &immediate, Instru
 	}
 	
 	// Now that we know the value, go right ahead and write it to the instruction.
-	target.setBitsInRange(startInd, startInd + size, toWrite);	
+	target.setBitsInRange(startInd, (startInd + size) - 1, toWrite);	
 }
 
 // Write a label to target given its name as a string by looking it up in the label map. If the label

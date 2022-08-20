@@ -27,7 +27,7 @@ public:
 	std::string formattedAsString() const;
 	// Returns the data in this instruction from the lower bound to the high bound, inclusive. If either location 
 	// is out of range or if upper < lower, throw exception.
-	unsigned int getBitsInRange(unsigned int lower, unsigned int upper);
+	unsigned int getBitsInRange(unsigned int lower, unsigned int upper) const;
 
 	// Set bit at locaton i to state. If i is out of range, throw exception.
 	void setBitState(unsigned int i, bool state);

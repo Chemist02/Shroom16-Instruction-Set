@@ -46,7 +46,7 @@ Page437OutputScreen::Page437OutputScreen(unsigned int width, unsigned int height
 
 // Set a character in the screen at (x, y) to the specified character, as defined in code page 437.
 // If we go out of bounds, throw exception. Requires that the character be defined in code page 437.
-void Page437OutputScreen::setChar(unsigned int x, unsigned int y, char c, const sf::Color &color) {
+void Page437OutputScreen::setChar(unsigned int x, unsigned int y, unsigned char c, const sf::Color &color) {
 	// Check if we're in bounds, else throw exception. Unsigned, so only need to check greater than.
 	if (x >= this->screenBuffer[y].size() || y >= this->screenBuffer.size()) {
 		throw std::runtime_error("Character out of range of the screen!");

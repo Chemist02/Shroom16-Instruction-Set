@@ -228,8 +228,10 @@ int main(int argc, char *argv[]) {
 	unsigned int instructionNumber = 0;
 	// Current line of file.
 	std::string line;
-	// Keeps track of line number.C:\Premake
+	// Keeps track of line number.
 	unsigned int lineNumber = 0;
+	// List of plaintext instructions which is filled if we do a binary dump.
+	std::vector<std::string> instructionLines;
 	while (getline(sourceFile, line)) {
 		// Increment line number.
 		lineNumber++;
@@ -267,6 +269,9 @@ int main(int argc, char *argv[]) {
 			exit(-1);
 		}
 		machineCode.push_back(translatedLine);
+		if (doDumpInstructions) {
+			instructionLines.push_back(line);
+		}
 
 		// If we made it this far, we know we're dealing with a instruction so we should increment.
 		instructionNumber++;
@@ -274,8 +279,8 @@ int main(int argc, char *argv[]) {
 
 	// If we should dump our instructions to stdout, do it.
 	if (doDumpInstructions) {
-		for (Instruction instruction : machineCode) {
-			std::cout << instruction.formattedAsString() << std::endl;
+		for (unsigned int i = 0; i < machineCode.size(); i++) {
+			std::cout << instructionLines[i] << ":    " << machineCode[i].formattedAsString() << std::endl;
 		}
 	}
 
@@ -284,7 +289,7 @@ int main(int argc, char *argv[]) {
 	// Handle case for virtual machine.
 	if (!doOutputSchem) {
 		// Open output c++ file stream for creating assembled program for the virtual machine.
-		std::ofstream outFile(outFileName);
+		std::ofstream outFile(outFileName, std::ios::binary);
 		if (!outFile.good()) {
 			std::cerr << "Error: Issue opening output file " << outFileName << "!\n";
 			return -1;

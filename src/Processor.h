@@ -1,4 +1,5 @@
 #include <fstream>
+#include <iostream>
 #include <functional>
 #include <map>
 #include <time.h>
@@ -15,6 +16,12 @@
 // interacting with.
 class Processor {
 public:
+	static const std::string &getCharDisplay();
+	static WORD getCurrentOutputNumber();
+	static bool isWaitingForInput();
+	static WORD getProgramCounter();
+	static Instruction getNextInstruction();
+
 	// Run the next processor task. Usually this is the next instruction as pointed to by the program counter, but
 	// if there's an interrupt in progress, other tasks are also possible (e.g. waiting for a number to be 
 	// entered).

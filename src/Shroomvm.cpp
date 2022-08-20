@@ -20,6 +20,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include "Processor.h"
 #include "Page437OutputScreen.h"
 
@@ -28,20 +29,81 @@ void runNoGUI(bool doStepMode, float minTimeBetweenInstructions) {
 }
 
 void drawNormalViewLabels(Page437OutputScreen &screen) {
-	screen.drawStringHoriz(0u, 0u, 13u, "CHARACTER-OUT", sf::Color::Green);
-	screen.drawStringHoriz(16u, 0u, 6u, "NUM-IN", sf::Color::Green);
-	screen.drawStringHoriz(23u, 0u, 6u, "NUMOUT", sf::Color::Green);
-	screen.drawStringHoriz(30u, 0u, 6u, "KEYPAD", sf::Color::Green);
-	screen.drawStringHoriz(37u, 0u, 5u, "PRESS", sf::Color::Green);
-	screen.drawStringHoriz(0u, 3u, 12u, "PIXEL-SCREEN", sf::Color::Green);
-	screen.drawStringHoriz(33u, 3u, 9u, "REGISTERS", sf::Color::Green);
+	screen.drawStringHoriz(0u, 0u, 16u, "CHARACTER-OUT---", sf::Color::Green);
+
+	if (!Processor::isWaitingForInput()) {
+		screen.drawStringHoriz(17u, 0u, 6u, "NUM-IN", sf::Color::Green);
+	}
+	else {
+		screen.drawStringHoriz(17u, 0u, 6u, "NUM-IN", sf::Color::Blue);
+	}
+
+	screen.drawStringHoriz(24u, 0u, 6u, "NUMOUT", sf::Color::Green);
+	screen.drawStringHoriz(31u, 0u, 6u, "KEYPAD", sf::Color::Green);
+	screen.drawStringHoriz(35u, 1u, 6u, "ZX", sf::Color::Cyan);
+	screen.setChar(31u, 1u, 27u, sf::Color::Cyan);
+	screen.setChar(32u, 1u, 26u, sf::Color::Cyan);
+	screen.setChar(33u, 1u, 24u, sf::Color::Cyan);
+	screen.setChar(34u, 1u, 25u, sf::Color::Cyan);
+	screen.drawStringHoriz(38u, 0u, 5u, "PAG-1", sf::Color::Green);
+
+	for (unsigned int i = 0; i <= 33; i++) {
+		screen.setChar(i, 3u, CHAR_FULL + 1, sf::Color::Green);
+		screen.setChar(i, 36u, CHAR_FULL + 4, sf::Color::Green);
+		if (i < 33 && i > 0) {
+			screen.setChar(0u, 3u + i, CHAR_FULL + 2, sf::Color::Green);
+			screen.setChar(33u, 3u + i, CHAR_FULL + 3, sf::Color::Green);
+		}
+	}
+
+	screen.drawStringHoriz(10u, 3u, 14u, "|PIXEL-SCREEN|", sf::Color::Green);
+	screen.drawStringHoriz(34u, 3u, 9u, "REGISTERS", sf::Color::Green);
+	screen.drawStringHoriz(34u, 4u, 3u, "$00", sf::Color::Magenta);
+	screen.drawStringHoriz(34u, 5u, 3u, "$fp", sf::Color::Magenta);
+	screen.drawStringHoriz(34u, 6u, 3u, "$sp", sf::Color::Magenta);
+	screen.drawStringHoriz(34u, 7u, 3u, "$ca", sf::Color::Magenta);
+	for (unsigned int i = 0; i <= 26; i++) {	
+		screen.drawStringHoriz(34u, 8u + i, 4u, "$g" + std::to_string(i) + " ", sf::Color::Magenta);
+	}
+	screen.drawStringHoriz(34u, 35u, 3u, "$wr", sf::Color::Magenta);
+
+	screen.drawStringHoriz(0u, 38u, 3u, "PC-", sf::Color::Green);
+	screen.drawStringHoriz(4u, 38u, 11u, "INSTRUCTION", sf::Color::Green);
+}
+
+void drawNormalModeData(Page437OutputScreen &screen) {
+	// Character display.	
+	screen.drawStringHoriz(0u, 1u, 16u, Processor::getCharDisplay(), sf::Color::Yellow);
+	// Number out display.
+	screen.drawStringHoriz(24u, 1u, 6u, std::to_string(Processor::getCurrentOutputNumber()), sf::Color::Yellow);
+	// Pixel screen.
+	for (unsigned int y = 0; y < SCREEN_HEIGHT; y++) {
+		for (unsigned int x = 0; x < SCREEN_WIDTH; x++) {
+			unsigned char charToSetTo = PixelScreen::getPixelState(y, x) ? CHAR_FULL : ' ';
+			screen.setChar(1u + x, 4u + y, charToSetTo, sf::Color::Yellow);
+		}
+	}
+
+	// Register values.
+	for (unsigned int i = 0; i < NUMBER_OF_REGISTERS; i++) {
+		// Find hex equivalent.
+		std::ostringstream hexStream;
+		hexStream << std::hex << RegisterFile::read(i);
+		screen.drawStringHoriz(39u, 4u + i, 4u, hexStream.str(), sf::Color::Yellow);
+	}
+
+	// Program counter.
+	std::ostringstream hexStream;
+	hexStream << std::hex << Processor::getProgramCounter();
+	screen.drawStringHoriz(0u, 39u, 3u, hexStream.str(), sf::Color::Yellow);
+	screen.drawStringHoriz(4u, 39u, 32u, Processor::getNextInstruction().formattedAsString(), sf::Color::Yellow);
 }
 
 void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 	// Create window.
-	sf::RenderWindow window(sf::VideoMode(516u, 468u), "Shroom16 Virtual Machine");
+	sf::RenderWindow window(sf::VideoMode(516u, 516u), "Shroom16 Virtual Machine");
 	// Create output screen to storee characters.
-	Page437OutputScreen screen(43u, 39u, "assets/font.png");
+	Page437OutputScreen screen(43u, 43u, "assets/font.png");
 	// 0 iff we're in normal view, 1 iff we're in memory view.
 	unsigned int currentPageState = 0u;
 	while (window.isOpen()) {
@@ -59,6 +121,8 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 			case 0u:
 				// Draw data labels.
 				drawNormalViewLabels(screen);
+				// Now add in the actual data.
+				drawNormalModeData(screen);
 			break;
 			case 1u:
 			break;
@@ -66,6 +130,9 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 				exit(-1);
 			break;
 		}
+
+		// Execute the next task.
+		Processor::runNextTask();
 
 		// Update the window with the current screen buffer.
 		screen.updateWindow(window);
@@ -122,7 +189,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Try to open machine code file.
-	std::ifstream codeFile(argv[1], std::ios::binary);
+	std::ifstream codeFile(argv[1], std::ios::in|std::ios::binary);
 	// Make sure file was properly opened.
 	if (!codeFile.good()) {
 		std::cerr << "Error: invalid input file " << argv[1] << "\nUsage: " << argv[0] << usageMessage 
@@ -131,7 +198,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Now that we know we have a good file, load instructions into instruction memory.
-	//Processor::loadMachineCode(codeFile);
+	Processor::loadMachineCode(codeFile);
 
 	// Actually run program depending on settings.
 	if (!noGUIMode) {

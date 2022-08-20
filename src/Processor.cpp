@@ -1,7 +1,7 @@
 #include "Processor.h"
 
 // Vector of binary instructions.
-std::vector<Instruction> Processor::instructionMemory(INSTRUCTION_MEMORY_SIZE);
+std::vector<Instruction> Processor::instructionMemory;
 
 // Our current location in instruction memory.
 WORD Processor::programCounter = 0;
@@ -61,6 +61,26 @@ Processor::opcodeToInstructionMap = {
 // Seed our random number generator with the current number of seconds since the Unix epoch.
 std::mt19937 Processor::mt(time(nullptr));
 
+const std::string &Processor::getCharDisplay() { 
+	return Processor::charDisplay; 
+}
+
+WORD Processor::getCurrentOutputNumber() { 
+	return Processor::currentOutputNumber; 
+}
+
+bool Processor::isWaitingForInput() {
+	return Processor::waitingForInput;
+}
+
+WORD Processor::getProgramCounter() {
+	return Processor::programCounter;
+}
+
+Instruction Processor::getNextInstruction() {
+	return Processor::instructionMemory[Processor::programCounter];
+}
+
 // Run the next processor task. Usually this is the next instruction as pointed to by the program counter, but
 // if there's an interrupt in progress, other tasks are also possible (e.g. waiting for a number to be 
 // entered).
@@ -75,7 +95,16 @@ void Processor::runNextTask() {
 	
 	// Load the opcode from the instruction.
 	unsigned int opcode = toExecute.getBitsInRange(0, 5);
-
+	
+	std::cout << toExecute.formattedAsString() << "    " << opcode << std::endl;
+	std::cout << 
+		toExecute.getBitsInRange(6, 10)  << "    " <<
+		toExecute.getBitsInRange(11, 15) << "    " <<
+		toExecute.getBitsInRange(16, 20) << "    " <<
+		toExecute.getBitsInRange(21, 28) << "    " <<
+		toExecute.getBitsInRange(16, 31) << "    " <<
+		toExecute.getBitsInRange(16, 24) << std::endl;
+	
 	// Actually execute our instruction.
 	Processor::opcodeToInstructionMap.find(opcode)->second(
 		toExecute.getBitsInRange(6, 10),		
@@ -84,25 +113,33 @@ void Processor::runNextTask() {
 		toExecute.getBitsInRange(21, 28),		
 		toExecute.getBitsInRange(16, 31),		
 		toExecute.getBitsInRange(16, 24)		
-	);	
+	);
+
+	// Increment program counter iff we're not waiting for input.
+	if (!Processor::waitingForInput) {
+		Processor::programCounter++;
+	}
 }
 
 // Load machine code from an assembled source into instruction memory. Requires the input file to be a valid
 // file opened for binary reading.
 void Processor::loadMachineCode(std::ifstream &codeFile) {
-	BYTE nextByte;
-	unsigned int byteCounter = 0u;
-	Instruction instructionSoFar;
-	while (codeFile >> nextByte) {
-		instructionSoFar.setBitsInRange(byteCounter * 8u, byteCounter * 8u + 8u, (unsigned int)nextByte);
-		byteCounter++;
+	// Read contents of machne code file.
+	std::vector<char> codeFileBuffer;
+	char byte;
+	while (codeFile.get(byte)) {
+		codeFileBuffer.push_back(byte);
+	}
 
-		// If we're done reading this instruction, write and reset.
-		if (byteCounter >= 4) {	
-			Processor::instructionMemory.push_back(instructionSoFar);
-			instructionSoFar.setBitsInRange(0u, 31u, 0u);
-			byteCounter = 0u;
-		}
+	// Turn these raw bytes into instructions and append into machine code vector.
+	for (unsigned int i = 0; i < (codeFileBuffer.size() / 4u); i++) {
+		Instruction nextInstruction;
+		nextInstruction.setBitsInRange(0u, 7u, (BYTE)codeFileBuffer[i * 4u]);
+		nextInstruction.setBitsInRange(8u, 15u, (BYTE)codeFileBuffer[i * 4u + 1]);
+		nextInstruction.setBitsInRange(16u, 23u, (BYTE)codeFileBuffer[i * 4u + 2]);
+		nextInstruction.setBitsInRange(24u, 31u, (BYTE)codeFileBuffer[i * 4u + 3]);
+		Processor::instructionMemory.push_back(nextInstruction);
+		std::cout << nextInstruction.formattedAsString() << std::endl;
 	}
 }
 
