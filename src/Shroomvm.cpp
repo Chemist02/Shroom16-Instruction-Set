@@ -99,6 +99,44 @@ void drawNormalModeData(Page437OutputScreen &screen) {
 	screen.drawStringHoriz(4u, 39u, 32u, Processor::getNextInstruction().formattedAsString(), sf::Color::Yellow);
 }
 
+
+void drawDataViewLabels(Page437OutputScreen &screen) {
+	screen.drawStringHoriz(0u, 0u, 4u, "DATA", sf::Color::Green);
+	screen.drawStringHoriz(0u, 1u, 11u, "MEMORY-VIEW", sf::Color::Green);
+	screen.drawStringHoriz(38u, 0u, 5u, "PAG-2", sf::Color::Green);
+	for (unsigned int i = 0; i <= 7; i++) {
+		screen.setChar(3u + i * 5, 3u, (char)i + 48, sf::Color::Green);
+	}
+	for (unsigned int i = 0; i < 32; i++) {	
+		((i & 0x1) == 0) ? screen.setChar(1u, 4u + i, '0', sf::Color::Green) : screen.setChar(1u, 4u + i, '8', sf::Color::Green);
+	}
+
+	for (unsigned int i = 0; i <= 15; i++) {
+		std::ostringstream hexStream;
+		hexStream << std::hex << i;
+		screen.drawStringVert(0u, 4u + i * 2, 2u, hexStream.str() + hexStream.str(), sf::Color::Green);
+	}
+	screen.drawStringHoriz(0u, 38u, 3u, "PC-", sf::Color::Green);
+	screen.drawStringHoriz(4u, 38u, 11u, "INSTRUCTION", sf::Color::Green);
+}
+
+void drawDataModeData(Page437OutputScreen &screen) {
+	// Draw data memory contents.
+	for (unsigned int i = 0; i < DATA_MEMORY_SIZE; i++) {
+		unsigned int row = (unsigned int)(((float)i / (float)DATA_MEMORY_SIZE) * 32.0f);
+		unsigned int col = i % 8u;
+		std::ostringstream hexStream;
+		hexStream << std::hex << DataMemory::getWord((WORD)i);
+		screen.drawStringHoriz(3u + col * 5, 4u + row, 4u, hexStream.str(), sf::Color::Yellow);
+	}
+
+	// Draw program counter.
+	std::ostringstream hexStream;
+	hexStream << std::hex << Processor::getProgramCounter();
+	screen.drawStringHoriz(0u, 39u, 3u, hexStream.str(), sf::Color::Yellow);
+	screen.drawStringHoriz(4u, 39u, 32u, Processor::getNextInstruction().formattedAsString(), sf::Color::Yellow);
+}
+
 void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 	// Create window.
 	sf::RenderWindow window(sf::VideoMode(516u, 516u), "Shroom16 Virtual Machine");
@@ -106,12 +144,31 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 	Page437OutputScreen screen(43u, 43u, "assets/font.png");
 	// 0 iff we're in normal view, 1 iff we're in memory view.
 	unsigned int currentPageState = 0u;
+	// Should we advance to the next step of the program, used to step mode.
+	bool advanceToNextStep = false;
 	while (window.isOpen()) {
 		// Check for events.
 		sf::Event event;
 		while (window.pollEvent(event)) {
+			// Close window if 'X' is pressed.
 			if (event.type == sf::Event::Closed) {
 				window.close();
+			}
+			
+			// Check for key presses.
+			if (event.type == sf::Event::KeyPressed) {
+				// Handle stepping.
+				if (event.key.code == sf::Keyboard::Space) {
+					advanceToNextStep = true;
+				}
+
+				// Handle page switching.
+				if (event.key.code == sf::Keyboard::Num1) {
+					currentPageState = 0u;
+				}
+				else if (event.key.code == sf::Keyboard::Num2) {
+					currentPageState = 1u;
+				}
 			}
 		}
 
@@ -124,7 +181,11 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 				// Now add in the actual data.
 				drawNormalModeData(screen);
 			break;
-			case 1u:
+			case 1u:				
+				// Draw data labels.
+				drawDataViewLabels(screen);
+				// Now add in the actual data.
+				drawDataModeData(screen);
 			break;
 			default:
 				exit(-1);
@@ -132,7 +193,15 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 		}
 
 		// Execute the next task.
-		Processor::runNextTask();
+		if (doStepMode) {
+			if (advanceToNextStep) {
+				Processor::runNextTask();
+				advanceToNextStep = false;
+			}
+		}
+		else {
+			Processor::runNextTask();
+		}
 
 		// Update the window with the current screen buffer.
 		screen.updateWindow(window);

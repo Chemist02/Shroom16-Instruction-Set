@@ -9,6 +9,9 @@ WORD Processor::programCounter = 0;
 // True iff an ?in interrupt was used.
 bool Processor::waitingForInput = false;
 
+// True iff the program has crashed.
+bool Processor::programHasCrashed = false;
+
 // Number we're currently outputting to the screen.
 WORD Processor::currentOutputNumber = 0;
 
@@ -81,12 +84,22 @@ Instruction Processor::getNextInstruction() {
 	return Processor::instructionMemory[Processor::programCounter];
 }
 
+
+WORD Processor::signExtendToWord(WORD value, unsigned int numOfBitsInValue) {
+	WORD signBitAlone = (value & (0b1 << (numOfBitsInValue - 1)));
+	for (unsigned int i = 0; i <= 16u; i++) {
+		value |= signBitAlone;
+		signBitAlone <<= 1;
+	}
+	return value;
+}
+
 // Run the next processor task. Usually this is the next instruction as pointed to by the program counter, but
 // if there's an interrupt in progress, other tasks are also possible (e.g. waiting for a number to be 
 // entered).
 void Processor::runNextTask() {
-	// If we're waiting for input, don't do anything.
-	if (waitingForInput) {
+	// If we're waiting for input or the program has crashed, don't do anything.
+	if (waitingForInput || programHasCrashed) {
 		return;
 	}
 
@@ -104,16 +117,22 @@ void Processor::runNextTask() {
 		toExecute.getBitsInRange(21, 28) << "    " <<
 		toExecute.getBitsInRange(16, 31) << "    " <<
 		toExecute.getBitsInRange(16, 24) << std::endl;
-	
-	// Actually execute our instruction.
-	Processor::opcodeToInstructionMap.find(opcode)->second(
-		toExecute.getBitsInRange(6, 10),		
-		toExecute.getBitsInRange(11, 15),		
-		toExecute.getBitsInRange(16, 20),		
-		toExecute.getBitsInRange(21, 28),		
-		toExecute.getBitsInRange(16, 31),		
-		toExecute.getBitsInRange(16, 24)		
-	);
+	try {	
+		// Actually execute our instruction.
+		Processor::opcodeToInstructionMap.find(opcode)->second(
+			toExecute.getBitsInRange(6, 10),		
+			toExecute.getBitsInRange(11, 15),		
+			toExecute.getBitsInRange(16, 20),		
+			toExecute.getBitsInRange(21, 28),		
+			toExecute.getBitsInRange(16, 31),		
+			toExecute.getBitsInRange(16, 24)		
+		);
+	}
+	catch (std::exception &e) {
+		programHasCrashed = true;
+		std::cerr << "Program crash! " << e.what() << std::endl;
+		return;
+	}
 
 	// Increment program counter iff we're not waiting for input.
 	if (!Processor::waitingForInput) {
@@ -124,7 +143,7 @@ void Processor::runNextTask() {
 // Load machine code from an assembled source into instruction memory. Requires the input file to be a valid
 // file opened for binary reading.
 void Processor::loadMachineCode(std::ifstream &codeFile) {
-	// Read contents of machne code file.
+	// Read contents of machine code file.
 	std::vector<char> codeFileBuffer;
 	char byte;
 	while (codeFile.get(byte)) {
@@ -139,7 +158,6 @@ void Processor::loadMachineCode(std::ifstream &codeFile) {
 		nextInstruction.setBitsInRange(16u, 23u, (BYTE)codeFileBuffer[i * 4u + 2]);
 		nextInstruction.setBitsInRange(24u, 31u, (BYTE)codeFileBuffer[i * 4u + 3]);
 		Processor::instructionMemory.push_back(nextInstruction);
-		std::cout << nextInstruction.formattedAsString() << std::endl;
 	}
 }
 
@@ -190,11 +208,11 @@ void Processor::XOR(BYTE rdest, BYTE rreada, BYTE rreadb, BYTE, WORD, WORD) {
 }
 
 void Processor::LW(BYTE rdest, BYTE rreada, BYTE, BYTE offset, WORD, WORD) {
-	DataMemory::readToRegister(rdest, rreada, offset);
+	DataMemory::readToRegister(rdest, rreada, Processor::signExtendToWord((WORD)offset, 8u));
 }
 
 void Processor::SW(BYTE, BYTE rreada, BYTE rreadb, BYTE offset, WORD, WORD) {
-	DataMemory::writeFromRegister(rreadb, rreada, offset);
+	DataMemory::writeFromRegister(rreada, rreadb, Processor::signExtendToWord((WORD)offset, 8u));
 }
 
 void Processor::ADDI(BYTE rdest, BYTE rreada, BYTE, BYTE, WORD immed, WORD) {
@@ -242,35 +260,38 @@ void Processor::CMP(BYTE rdest, BYTE rreada, BYTE rreadb, BYTE, WORD, WORD) {
 	RegisterFile::write(rdest, result);
 }
 
+// For jump instructions we must subtarct one from our destination to that when we increment the PC we end up exactly
+// where we're supposed to.
+
 void Processor::JMP(BYTE, BYTE, BYTE, BYTE, WORD, WORD label) {
-	Processor::programCounter = label;
+	Processor::programCounter = label - 1;
 }
 
 void Processor::JEQ(BYTE, BYTE rreada, BYTE, BYTE, WORD, WORD label) {
 	if (RegisterFile::read(rreada) == 0b001) {
-		Processor::programCounter = label;
+		Processor::programCounter = label - 1;
 	}
 }
 
 void Processor::JLT(BYTE, BYTE rreada, BYTE, BYTE, WORD, WORD label) {
 	if (RegisterFile::read(rreada) == 0b010) {
-		Processor::programCounter = label;
+		Processor::programCounter = label - 1;
 	}
 }
 
 void Processor::JGT(BYTE, BYTE rreada, BYTE, BYTE, WORD, WORD label) {
 	if (RegisterFile::read(rreada) == 0b100) {
-		Processor::programCounter = label;
+		Processor::programCounter = label - 1;
 	}
 }
 
 void Processor::CALL(BYTE, BYTE, BYTE, BYTE, WORD, WORD label) {
 	RegisterFile::write(CA, programCounter + 1);
-	Processor::programCounter = label;
+	Processor::programCounter = label - 1;
 }
 
 void Processor::JR(BYTE, BYTE rreada, BYTE, BYTE, WORD, WORD) {
-	Processor::programCounter = RegisterFile::read(rreada);
+	Processor::programCounter = RegisterFile::read(rreada) - 1;
 }
 
 void Processor::RANDOM(BYTE rdest, BYTE, BYTE, BYTE, WORD, WORD) {

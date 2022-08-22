@@ -18,7 +18,7 @@ const std::map<std::string, std::function<void(Instruction&, const std::vector<s
 	{"or", InstructionWriter::writeRType3},
 	{"and", InstructionWriter::writeRType3},
 	{"xor", InstructionWriter::writeRType3},
-	{"lw", InstructionWriter::writeIType},
+	{"lw", InstructionWriter::writeLW},
 	{"sw", InstructionWriter::writeSW},
 	{"addi", InstructionWriter::writeIType},
 	{"slli", InstructionWriter::writeIType},

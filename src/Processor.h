@@ -21,6 +21,8 @@ public:
 	static bool isWaitingForInput();
 	static WORD getProgramCounter();
 	static Instruction getNextInstruction();
+	
+	static WORD signExtendToWord(WORD value, unsigned int numOfBitsInValue);
 
 	// Run the next processor task. Usually this is the next instruction as pointed to by the program counter, but
 	// if there's an interrupt in progress, other tasks are also possible (e.g. waiting for a number to be 
@@ -83,6 +85,8 @@ private:
 	static std::string charDisplay;
 	// Mersenne twister random number generator.
 	static std::mt19937 mt;
+	// True iff the program has crashed.
+	static bool programHasCrashed;
 	// Maps 6 bit opcodes into instruction functions.
 	static const std::map<unsigned int, std::function<void(BYTE, BYTE, BYTE, BYTE, WORD, WORD)> > 
 	opcodeToInstructionMap;
