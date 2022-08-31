@@ -21,7 +21,10 @@ public:
 	static bool isWaitingForInput();
 	static WORD getProgramCounter();
 	static Instruction getNextInstruction();
-	
+	static void inputNumber(const std::string &numIn);
+	static void setCurrentKeypadState(WORD state);
+	static WORD getCurrentKeypadState();
+		
 	static WORD signExtendToWord(WORD value, unsigned int numOfBitsInValue);
 
 	// Run the next processor task. Usually this is the next instruction as pointed to by the program counter, but
@@ -77,6 +80,8 @@ private:
 	static WORD programCounter;
 	// True iff an ?in interrupt was used.
 	static bool waitingForInput;
+	// Id of register to place input into.
+	static BYTE inputResultRegID;
 	// Number we're currently outputting to the screen.
 	static WORD currentOutputNumber;
 	// Current state of the keyboard.

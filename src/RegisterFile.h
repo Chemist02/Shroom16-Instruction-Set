@@ -25,6 +25,9 @@ public:
 	// Writes a 16 bit value to the register with regID. If the regID is that of animmutable register, do nothing.
 	// Throw exception if register is out of range.
 	static void write(BYTE regID, WORD value);
+	// Writes a 16 bit value to the register with regID, regardless of whether or not this register should be 
+	// mutable. 
+	static void unsafeWrite(BYTE regID, WORD value);
 private:
 	// Array of words, where an index i represents the register with id i.
 	static std::vector<WORD> registers;

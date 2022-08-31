@@ -4,6 +4,8 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+// Contains utility functions for parsing/lexing lines of Shroom16 assembly code. Technically not a parser, but that
+// was the name I went with.
 namespace Parser {
 	// Return true iff character c is alphabetical (lower or upper).
 	bool isAlphabetical(char c); 

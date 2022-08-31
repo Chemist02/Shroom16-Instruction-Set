@@ -29,3 +29,15 @@ void RegisterFile::write(BYTE regID, WORD value) {
 	// Now that we know we're good, set the value.
 	RegisterFile::registers[(unsigned int)regID] = value;
 }
+
+// Writes a 16 bit value to the register with regID, regardless of whether or not this register should be 
+// mutable. 
+void RegisterFile::unsafeWrite(BYTE regID, WORD value) {
+	// Ensure register ID is valid/in range.
+	if ((unsigned int)regID >= NUMBER_OF_REGISTERS) {
+		throw std::invalid_argument("Invalid write register ID.");
+	}
+
+	// Now that we know we're good, set the value.
+	RegisterFile::registers[(unsigned int)regID] = value;
+}

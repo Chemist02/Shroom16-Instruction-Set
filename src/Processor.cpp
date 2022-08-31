@@ -9,6 +9,9 @@ WORD Processor::programCounter = 0;
 // True iff an ?in interrupt was used.
 bool Processor::waitingForInput = false;
 
+// Id of register to place input into.
+BYTE Processor::inputResultRegID = 0b0;
+
 // True iff the program has crashed.
 bool Processor::programHasCrashed = false;
 
@@ -94,6 +97,24 @@ WORD Processor::signExtendToWord(WORD value, unsigned int numOfBitsInValue) {
 	return value;
 }
 
+
+void Processor::inputNumber(const std::string &numIn) {
+	if (Processor::waitingForInput) {
+		RegisterFile::write(Processor::inputResultRegID, (WORD)std::stoi(numIn));
+		Processor::waitingForInput = false;
+		Processor::programCounter++;
+	}
+}
+
+
+void Processor::setCurrentKeypadState(WORD state) {
+	Processor::currentKeypadState = state;
+}
+
+WORD Processor::getCurrentKeypadState() {
+	return Processor::currentKeypadState;
+}
+
 // Run the next processor task. Usually this is the next instruction as pointed to by the program counter, but
 // if there's an interrupt in progress, other tasks are also possible (e.g. waiting for a number to be 
 // entered).
@@ -109,14 +130,6 @@ void Processor::runNextTask() {
 	// Load the opcode from the instruction.
 	unsigned int opcode = toExecute.getBitsInRange(0, 5);
 	
-	std::cout << toExecute.formattedAsString() << "    " << opcode << std::endl;
-	std::cout << 
-		toExecute.getBitsInRange(6, 10)  << "    " <<
-		toExecute.getBitsInRange(11, 15) << "    " <<
-		toExecute.getBitsInRange(16, 20) << "    " <<
-		toExecute.getBitsInRange(21, 28) << "    " <<
-		toExecute.getBitsInRange(16, 31) << "    " <<
-		toExecute.getBitsInRange(16, 24) << std::endl;
 	try {	
 		// Actually execute our instruction.
 		Processor::opcodeToInstructionMap.find(opcode)->second(
@@ -175,7 +188,8 @@ void Processor::SUB(BYTE rdest, BYTE rreada, BYTE rreadb, BYTE, WORD, WORD) {
 void Processor::MUL(BYTE rdest, BYTE rreada, BYTE rreadb, BYTE, WORD, WORD) {
 	int result = (int)RegisterFile::read(rreada) * (int)RegisterFile::read(rreadb);
 	RegisterFile::write(rdest, (WORD)result);
-	RegisterFile::write(WR, (WORD)result);
+	result >>= 16u;
+	RegisterFile::unsafeWrite(WR, (WORD)result);
 }
 
 void Processor::DIV(BYTE rdest, BYTE rreada, BYTE rreadb, BYTE, WORD, WORD) {
@@ -299,6 +313,7 @@ void Processor::RANDOM(BYTE rdest, BYTE, BYTE, BYTE, WORD, WORD) {
 }
 
 void Processor::IN(BYTE rdest, BYTE, BYTE, BYTE, WORD, WORD) {
+	Processor::inputResultRegID = rdest;
 	Processor::waitingForInput = true;
 }
 

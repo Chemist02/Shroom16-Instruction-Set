@@ -30,7 +30,6 @@ void DataMemory::writeFromRegister(BYTE regWithAddressID, BYTE regWithDataID, WO
 	try {
 		// Calculate our final memory address.
 		WORD address = RegisterFile::read(regWithAddressID);
-		std::cout << address << std::endl;
 		address += offset;
 
 		// Ensure address is in range.

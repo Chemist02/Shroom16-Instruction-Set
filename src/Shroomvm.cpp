@@ -24,8 +24,16 @@
 #include "Processor.h"
 #include "Page437OutputScreen.h"
 
-void runNoGUI(bool doStepMode, float minTimeBetweenInstructions) {
+#define BACKSPACE 8
 
+#define LEFTHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Left)
+#define RIGHTHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Right)
+#define UPHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Up)
+#define DOWNHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Down)
+#define ZHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Z)
+#define XHELD sf::Keyboard::isKeyPressed(sf::Keyboard::X)
+
+void runNoGUI(bool doStepMode, float minTimeBetweenInstructions) {
 }
 
 void drawNormalViewLabels(Page437OutputScreen &screen) {
@@ -40,11 +48,6 @@ void drawNormalViewLabels(Page437OutputScreen &screen) {
 
 	screen.drawStringHoriz(24u, 0u, 6u, "NUMOUT", sf::Color::Green);
 	screen.drawStringHoriz(31u, 0u, 6u, "KEYPAD", sf::Color::Green);
-	screen.drawStringHoriz(35u, 1u, 6u, "ZX", sf::Color::Cyan);
-	screen.setChar(31u, 1u, 27u, sf::Color::Cyan);
-	screen.setChar(32u, 1u, 26u, sf::Color::Cyan);
-	screen.setChar(33u, 1u, 24u, sf::Color::Cyan);
-	screen.setChar(34u, 1u, 25u, sf::Color::Cyan);
 	screen.drawStringHoriz(38u, 0u, 5u, "PAG-1", sf::Color::Green);
 
 	for (unsigned int i = 0; i <= 33; i++) {
@@ -82,6 +85,54 @@ void drawNormalModeData(Page437OutputScreen &screen) {
 			unsigned char charToSetTo = PixelScreen::getPixelState(y, x) ? CHAR_FULL : ' ';
 			screen.setChar(1u + x, 4u + y, charToSetTo, sf::Color::Yellow);
 		}
+	}
+
+	// Key in display.
+	WORD keyInState = Processor::getCurrentKeypadState();
+	screen.setChar(31u, 1u, 27u, sf::Color::Cyan);
+	screen.setChar(32u, 1u, 26u, sf::Color::Cyan);
+	screen.setChar(33u, 1u, 24u, sf::Color::Cyan);
+	screen.setChar(34u, 1u, 25u, sf::Color::Cyan);
+	screen.setChar(35u, 1u, 'Z', sf::Color::Cyan);
+	screen.setChar(36u, 1u, 'X', sf::Color::Cyan);
+
+	switch (keyInState) {
+		case 0b0000000000000001:
+			screen.setChar(31u, 1u, 27u, sf::Color::Yellow);
+			break;
+		case 0b0000000000000010:
+			screen.setChar(32u, 1u, 26u, sf::Color::Yellow);
+			break;
+		case 0b0000000000000100:
+			screen.setChar(33u, 1u, 24u, sf::Color::Yellow);
+			break;
+		case 0b0000000000001000:
+			screen.setChar(34u, 1u, 25u, sf::Color::Yellow);
+			break;
+		case 0b0000000000010000:
+			screen.setChar(33u, 1u, 24u, sf::Color::Yellow);
+			screen.setChar(32u, 1u, 26u, sf::Color::Yellow);
+			break;
+		case 0b0000000000100000:
+			screen.setChar(33u, 1u, 24u, sf::Color::Yellow);
+			screen.setChar(31u, 1u, 27u, sf::Color::Yellow);
+			break;
+		case 0b0000000001000000:
+			screen.setChar(34u, 1u, 25u, sf::Color::Yellow);
+			screen.setChar(32u, 1u, 26u, sf::Color::Yellow);
+			break;
+		case 0b0000000010000000:
+			screen.setChar(34u, 1u, 25u, sf::Color::Yellow);
+			screen.setChar(31u, 1u, 27u, sf::Color::Yellow);
+			break;
+	}
+
+	if (keyInState & 0b0000000100000000) {
+		screen.setChar(35u, 1u, 'Z', sf::Color::Yellow);	
+	}
+
+	if (keyInState & 0b0000001000000000) {
+		screen.setChar(36u, 1u, 'X', sf::Color::Yellow);	
 	}
 
 	// Register values.
@@ -137,6 +188,47 @@ void drawDataModeData(Page437OutputScreen &screen) {
 	screen.drawStringHoriz(4u, 39u, 32u, Processor::getNextInstruction().formattedAsString(), sf::Color::Yellow);
 }
 
+WORD getKeypadState() {
+	WORD state = 0b0;
+	if (LEFTHELD) {
+		if (UPHELD) {
+			state = 0b0000000000100000;
+		}
+		else if (DOWNHELD) {
+			state = 0b0000000010000000;
+		}
+		else if (!RIGHTHELD) {
+			state = 0b0000000000000001;
+		}
+	}
+	else if (RIGHTHELD) {
+		if (UPHELD) {
+			state = 0b0000000000010000;
+		}
+		else if (DOWNHELD) {
+			state = 0b0000000001000000;
+		}
+		else if (!LEFTHELD) {
+			state = 0b0000000000000010;
+		}
+	}
+	else if (UPHELD && !DOWNHELD) {
+		state = 0b0000000000000100;
+	}
+	else if (DOWNHELD && !UPHELD) {
+		state = 0b0000000000001000;	
+	}
+
+	if (ZHELD) {
+		state |= 0b0000000100000000;
+	}
+
+	if (XHELD) {
+		state |= 0b0000001000000000;
+	}
+	return state;
+}
+
 void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 	// Create window.
 	sf::RenderWindow window(sf::VideoMode(516u, 516u), "Shroom16 Virtual Machine");
@@ -146,6 +238,12 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 	unsigned int currentPageState = 0u;
 	// Should we advance to the next step of the program, used to step mode.
 	bool advanceToNextStep = false;
+	// Clock to keep track of how many second sprogram has been running.
+	sf::Clock clock;
+	// Time of last instruction execution.
+	sf::Time timeOfLastInstructionExecution = clock.getElapsedTime();
+	// Current num in text.
+	std::string numInText = "";
 	while (window.isOpen()) {
 		// Check for events.
 		sf::Event event;
@@ -166,10 +264,35 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 				if (event.key.code == sf::Keyboard::Num1) {
 					currentPageState = 0u;
 				}
-				else if (event.key.code == sf::Keyboard::Num2) {
+				else if (event.key.code == sf::Keyboard::Num2 && !Processor::isWaitingForInput()) {
 					currentPageState = 1u;
 				}
+
+				// Handle number input.
+				if (event.key.code == sf::Keyboard::Enter) {
+					Processor::inputNumber(numInText);
+					numInText = "";
+
+				}
 			}
+
+			// Check for text input.
+			if (event.type == sf::Event::TextEntered && currentPageState == 0u && Processor::isWaitingForInput()) {
+				if (event.text.unicode == BACKSPACE && numInText.size() > 0) {
+					numInText.pop_back();
+				}
+				else if (event.text.unicode >= 32 && event.text.unicode < 128) {
+					numInText += static_cast<char>(event.text.unicode);
+				}
+			}
+		}
+
+		// Handle keypad input.
+		Processor::setCurrentKeypadState(getKeypadState());
+
+		// Draw input string.
+		if (currentPageState == 0u) {
+			screen.drawStringHoriz(17u, 1u, 6u, numInText, sf::Color::Yellow);
 		}
 
 		// Draw current labels and data to screen.
@@ -180,16 +303,16 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 				drawNormalViewLabels(screen);
 				// Now add in the actual data.
 				drawNormalModeData(screen);
-			break;
+				break;
 			case 1u:				
 				// Draw data labels.
 				drawDataViewLabels(screen);
 				// Now add in the actual data.
 				drawDataModeData(screen);
-			break;
+				break;
 			default:
 				exit(-1);
-			break;
+				break;
 		}
 
 		// Execute the next task.
@@ -200,7 +323,10 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 			}
 		}
 		else {
-			Processor::runNextTask();
+			if ((clock.getElapsedTime() - timeOfLastInstructionExecution).asSeconds() >= minTimeBetweenInstructions) {
+				Processor::runNextTask();
+				timeOfLastInstructionExecution = clock.getElapsedTime();
+			}
 		}
 
 		// Update the window with the current screen buffer.
@@ -214,7 +340,7 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 int main(int argc, char *argv[]) {
 	// Ensure we were given at least an input file as an argument, if not end program.
 	std::string usageMessage = " <input program> <optional arguments>\nOptional arguments:\n -t <time>       "
-		"Specify minimum time between instructions.\n -n              Run in no-gui mode.\n"
+		"Specify minimum time between instructions (in seconds).\n -n              Run in no-gui mode.\n"
 		" -s              Run in step mode.";
 	if (argc < 2) {
 		std::cerr << "Error: invalid number of arguments!\nUsage: " << argv[0] << usageMessage << std::endl;
@@ -250,7 +376,7 @@ int main(int argc, char *argv[]) {
 				return -1;
 			}
 		}
-		else {
+		else if (strcmp(argv[i - 1], "-t")) {
 			std::cerr << "Error: unknown flag " << argv[i] << "\nUsage: " << argv[0] << usageMessage 
 				<< std::endl;
 			return -1;
