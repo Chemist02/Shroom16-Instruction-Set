@@ -6,4 +6,19 @@ This is a work in progress assembler and virtual machine software package that i
 * A custom dialect of assembly that can be written in regular text files using your text editor of choice. These can then be assembled into machine code that can be run on the in game computer using the shroomasm software (one of the programs in this package), or on the virtual machine shroomvm (again, in this package). In other words, it compiles source code into Minecraft blocks!
 * Exensive documentation, although this is not publically available yet. 
 
-## Images
+## Screenshots
+In game computer:
+
+![alt text](https://github.com/Chemist02/Shroom16-Instruction-Set/blob/main/images/1.png)
+![alt text](https://github.com/Chemist02/Shroom16-Instruction-Set/blob/main/images/2.png)
+![alt text](https://github.com/Chemist02/Shroom16-Instruction-Set/blob/main/images/3.png)
+![alt text](https://github.com/Chemist02/Shroom16-Instruction-Set/blob/main/images/4.png)
+![alt text](https://github.com/Chemist02/Shroom16-Instruction-Set/blob/main/images/5.png)
+
+Virtual machine:
+
+![alt text](https://github.com/Chemist02/Shroom16-Instruction-Set/blob/main/images/vm1.png)
+![alt text](https://github.com/Chemist02/Shroom16-Instruction-Set/blob/main/images/vm2.png)
+
+## Credits
+Designed and implmented by Aaron Cohen and Griffin Bates.
