@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 // Size of instruction memory of the target machine in 4-byte instructions.
-#define INSTRUCTION_MEMORY_SIZE 256u
+#define INSTRUCTION_MEMORY_SIZE 512u
 //Instruction size in bits.
 #define INSTRUCTION_SIZE 32u
 //Byte size in bits.
