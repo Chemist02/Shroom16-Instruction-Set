@@ -1,5 +1,5 @@
 # Shroom16 Instruction Set
-This is a work in progress assembler and virtual machine software package that implements the Shroom16 Instruction Set (an original dialect of assembly). It's intended to be used with the Shiitake-16: a fully programmable redstone computer built enteirely in vanilla Minecraft! While the project is likely months from completetion, I thought it might be fun to release the code base thus far.
+This is a work in progress assembler and virtual machine software package that implements the Shroom16 Instruction Set (an original dialect of assembly). It's intended to be used with the Shiitake-16: a fully programmable redstone computer built enteirely in vanilla Minecraft! While the project is likely months from completetion, I thought it might be fun to release the codebase thus far.
 
 ## Planned Features
 * Fully programmable redstone computer complete with 16 bit registers, an ALU (including multiplcation and division instructions), a kilobyte of data memory, graphics, and an I/O system.
