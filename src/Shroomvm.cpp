@@ -26,12 +26,12 @@
 
 #define BACKSPACE 8
 
-#define LEFTHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Left)
-#define RIGHTHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Right)
-#define UPHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Up)
-#define DOWNHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Down)
-#define ZHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Z)
-#define XHELD sf::Keyboard::isKeyPressed(sf::Keyboard::X)
+#define LEFTHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)
+#define RIGHTHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)
+#define UPHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)
+#define DOWNHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)
+#define ZHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Z)
+#define XHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X)
 
 void runNoGUI(bool doStepMode, float minTimeBetweenInstructions) {
 }
@@ -231,7 +231,7 @@ WORD getKeypadState() {
 
 void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 	// Create window.
-	sf::RenderWindow window(sf::VideoMode(516u, 516u), "Shroom16 Virtual Machine");
+	sf::RenderWindow window(sf::VideoMode({516u, 516u}), "Shroom16 Virtual Machine");
 	// Create output screen to storee characters.
 	Page437OutputScreen screen(43u, 43u, "assets/font.png");
 	// 0 iff we're in normal view, 1 iff we're in memory view.
@@ -246,30 +246,29 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 	std::string numInText = "";
 	while (window.isOpen()) {
 		// Check for events.
-		sf::Event event;
-		while (window.pollEvent(event)) {
+		while (const std::optional event = window.pollEvent()) {
 			// Close window if 'X' is pressed.
-			if (event.type == sf::Event::Closed) {
+			if (event->is<sf::Event::Closed>()) {
 				window.close();
 			}
 			
 			// Check for key presses.
-			if (event.type == sf::Event::KeyPressed) {
+			if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
 				// Handle stepping.
-				if (event.key.code == sf::Keyboard::Space) {
+				if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
 					advanceToNextStep = true;
 				}
 
 				// Handle page switching.
-				if (event.key.code == sf::Keyboard::Num1) {
+				if (keyPressed->scancode == sf::Keyboard::Scancode::Num1) {
 					currentPageState = 0u;
 				}
-				else if (event.key.code == sf::Keyboard::Num2 && !Processor::isWaitingForInput()) {
+				else if (keyPressed->scancode == sf::Keyboard::Scancode::Num2 && !Processor::isWaitingForInput()) {
 					currentPageState = 1u;
 				}
 
 				// Handle number input.
-				if (event.key.code == sf::Keyboard::Enter) {
+				if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
 					Processor::inputNumber(numInText);
 					numInText = "";
 
@@ -277,12 +276,13 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 			}
 
 			// Check for text input.
-			if (event.type == sf::Event::TextEntered && currentPageState == 0u && Processor::isWaitingForInput()) {
-				if (event.text.unicode == BACKSPACE && numInText.size() > 0) {
+			const auto* textEntered = event->getIf<sf::Event::TextEntered>();
+			if (textEntered && currentPageState == 0u && Processor::isWaitingForInput()) {
+				if (textEntered->unicode == BACKSPACE && numInText.size() > 0) {
 					numInText.pop_back();
 				}
-				else if (event.text.unicode >= 32 && event.text.unicode < 128) {
-					numInText += static_cast<char>(event.text.unicode);
+				else if (textEntered->unicode >= 32 && textEntered->unicode < 128) {
+					numInText += static_cast<char>(textEntered->unicode);
 				}
 			}
 		}

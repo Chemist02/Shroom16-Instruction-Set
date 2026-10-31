@@ -42,7 +42,7 @@ private:
 	static std::vector<sf::Texture> characters;
 	// Vector storing all of the sprites making up the screen. Is not actually displayed until updateWindow() is 
 	// called.
-	std::vector<std::vector<sf::Sprite>> screenBuffer;
+	std::vector<std::vector<std::optional<sf::Sprite>>> screenBuffer;
 };
 
 #endif

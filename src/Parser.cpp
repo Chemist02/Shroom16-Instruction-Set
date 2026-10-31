@@ -61,7 +61,7 @@ namespace Parser {
 
 	// Take an instruction in line string and break down into compoents separated by spaces. Ignore all characters 
 	// that are not letters, numbers, $, ?, #, :, or ;. Completely overwrites parsedLine.
-	// For example, turns "add $g,0 $g1 $g2" into parsedLine = {"add", "$g0", "$g1", "$g2"}.
+	// For example, turns "add $g0 $g1 $g2" into parsedLine = {"add", "$g0", "$g1", "$g2"}.
 	void parseLine(const std::string &line, std::vector<std::string> &parsedLine) {
 		// Clear out parsedLine.
 		parsedLine.clear();

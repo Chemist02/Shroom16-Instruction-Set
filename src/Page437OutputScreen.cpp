@@ -16,17 +16,18 @@ Page437OutputScreen::Page437OutputScreen(unsigned int width, unsigned int height
 		for (unsigned int y = 0; y < FONT_IMAGE_HEIGHT; y++) {
 			for (unsigned int x = 0; x < FONT_IMAGE_WIDTH; x++) {
 				// Get the character "sub-image".
-				sf::Image charImage;
-				charImage.create(FONT_WIDTH, FONT_HEIGHT);
+				sf::Image charImage({FONT_WIDTH, FONT_HEIGHT});
 				for (unsigned int yPrime = 0; yPrime < FONT_HEIGHT; yPrime++) {
 					for (unsigned int xPrime = 0; xPrime < FONT_WIDTH; xPrime++) {
-						charImage.setPixel(xPrime, yPrime, fontImage.getPixel((x * FONT_WIDTH) + xPrime, (y * FONT_HEIGHT) + yPrime));
+						charImage.setPixel({xPrime, yPrime}, fontImage.getPixel({(x * FONT_WIDTH) + xPrime, (y * FONT_HEIGHT) + yPrime}));
 					}
 				}
 
 				// Place the sub image into the texture vector (i.e. load it into the GPU).
 				sf::Texture charTexture;
-				charTexture.loadFromImage(charImage);
+				if (!charTexture.loadFromImage(charImage)) {
+					throw std::runtime_error("Issue trying to load char image into texture!");
+				}
 				Page437OutputScreen::characters.push_back(charTexture);
 			}
 		}
@@ -37,9 +38,9 @@ Page437OutputScreen::Page437OutputScreen(unsigned int width, unsigned int height
 	for (unsigned int y = 0; y < this->screenBuffer.size(); y++) {
 		this->screenBuffer[y].resize(width);
 		for (unsigned int x = 0; x < this->screenBuffer[y].size(); x++) {
-			this->screenBuffer[y][x].setTexture(Page437OutputScreen::characters[0]);
-			sf::FloatRect spriteBounds = this->screenBuffer[y][x].getGlobalBounds();
-			this->screenBuffer[y][x].setPosition(spriteBounds.width * (float)x, spriteBounds.height * (float)y);	
+			this->screenBuffer[y][x].emplace(Page437OutputScreen::characters[0]);
+			sf::FloatRect spriteBounds = this->screenBuffer[y][x]->getGlobalBounds();
+			this->screenBuffer[y][x]->setPosition({spriteBounds.size.x * (float)x, spriteBounds.size.y * (float)y});	
 		}
 	}
 }
@@ -53,8 +54,8 @@ void Page437OutputScreen::setChar(unsigned int x, unsigned int y, unsigned char 
 	}
 
 	// Actually write character texture.
-	this->screenBuffer[y][x].setTexture(Page437OutputScreen::characters[c]);
-	this->screenBuffer[y][x].setColor(color);
+	this->screenBuffer[y][x]->setTexture(Page437OutputScreen::characters[c]);
+	this->screenBuffer[y][x]->setColor(color);
 }
 
 // Draw a string to the screen with the speciifed length. If this drawing will result in going out of bounds,
@@ -99,7 +100,7 @@ void Page437OutputScreen::updateWindow(sf::RenderWindow &window) {
 	
 	for (unsigned int y = 0; y < this->screenBuffer.size(); y++) {
 		for (unsigned int x = 0; x < this->screenBuffer.size(); x++) {
-			window.draw(this->screenBuffer[y][x]);
+			window.draw(this->screenBuffer[y][x].value());
 		}
 	}
 
