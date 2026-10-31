@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <cstdint>
 
 // Size of instruction memory of the target machine in 4-byte instructions.
 #define INSTRUCTION_MEMORY_SIZE 512u
@@ -20,6 +21,10 @@ typedef unsigned char BYTE;
 // considered the nth bit of the bits unsigned int, starting from the little end. Instruction begins with all zeros.
 class Instruction {
 public:
+	// Keep track of the original line number for this instruction. For use in emulator's debugger.
+	void setLineNum(int16_t n) { this->lineNum = n; }
+	int16_t getLineNum() { return this->lineNum; }
+
 	// Return true iff the bit at location i is 1, else false. If i is out of range, throw exception.
 	bool getBitState(unsigned int i) const;
 	// Return this instruction formatted as a string of '1' and '0' characters. Output is little endian, so bit 
@@ -37,10 +42,13 @@ public:
 
 	// Output the raw data in bits to the specified output file stream. Requires file stream to be valid.
 	void writeToFile(std::ofstream &out) const;
+
 private:
-	// Represents actual bits of instruction. We're using an unsigned int since it has a size of at least 4 bytes,
-	// which should provide sufficient room for our 32 bit instructions.
-	unsigned int bits = 0u;	
+	// Represents actual bits of the instruction
+	uint32_t bits = 0u;
+	// Line number of this instruction in the original source code. Will only be used for shroomemu debugger.
+	// Not written if negative
+	int16_t lineNum = -1;
 };
 
 #endif

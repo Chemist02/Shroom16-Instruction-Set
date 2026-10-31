@@ -64,6 +64,12 @@ Processor::opcodeToInstructionMap = {
 	{0b100001, Processor::CLRSCRN}
 };
 
+// True if we are at a breakpoint.
+bool Processor::isBroken = false;
+
+// Keeps track of which lines we should stop on for debugger.
+std::set<int16_t> Processor::breakpoints;
+
 // Seed our random number generator with the current number of seconds since the Unix epoch.
 std::mt19937 Processor::mt(time(nullptr));
 
@@ -119,8 +125,8 @@ WORD Processor::getCurrentKeypadState() {
 // if there's an interrupt in progress, other tasks are also possible (e.g. waiting for a number to be 
 // entered).
 void Processor::runNextTask() {
-	// If we're waiting for input or the program has crashed, don't do anything.
-	if (waitingForInput || programHasCrashed) {
+	// If we're waiting for input, are at a breakpoint, or the program has crashed, don't do anything.
+	if (waitingForInput || programHasCrashed || isBroken) {
 		return;
 	}
 
@@ -151,6 +157,13 @@ void Processor::runNextTask() {
 	if (!Processor::waitingForInput) {
 		Processor::programCounter++;
 	}
+
+	// Check if at breakpoint.
+	int16_t lineNum = Processor::instructionMemory[programCounter].getLineNum();
+	if (breakpoints.contains(lineNum)) {
+		std::cout << "Hit breakpoint at line " << lineNum << std::endl;
+		isBroken = true;
+	}
 }
 
 // Load machine code from an assembled source into instruction memory. Requires the input file to be a valid
@@ -164,12 +177,13 @@ void Processor::loadMachineCode(std::ifstream &codeFile) {
 	}
 
 	// Turn these raw bytes into instructions and append into machine code vector.
-	for (unsigned int i = 0; i < (codeFileBuffer.size() / 4u); i++) {
+	for (unsigned int i = 0; i < (codeFileBuffer.size() / 6u); i++) {
 		Instruction nextInstruction;
-		nextInstruction.setBitsInRange(0u, 7u, (BYTE)codeFileBuffer[i * 4u]);
-		nextInstruction.setBitsInRange(8u, 15u, (BYTE)codeFileBuffer[i * 4u + 1]);
-		nextInstruction.setBitsInRange(16u, 23u, (BYTE)codeFileBuffer[i * 4u + 2]);
-		nextInstruction.setBitsInRange(24u, 31u, (BYTE)codeFileBuffer[i * 4u + 3]);
+		nextInstruction.setBitsInRange(0u, 7u, (BYTE)codeFileBuffer[i * 6u]);
+		nextInstruction.setBitsInRange(8u, 15u, (BYTE)codeFileBuffer[i * 6u + 1]);
+		nextInstruction.setBitsInRange(16u, 23u, (BYTE)codeFileBuffer[i * 6u + 2]);
+		nextInstruction.setBitsInRange(24u, 31u, (BYTE)codeFileBuffer[i * 6u + 3]);
+		nextInstruction.setLineNum(*reinterpret_cast<int16_t*>(&codeFileBuffer[i * 6 + 4]));
 		Processor::instructionMemory.push_back(nextInstruction);
 	}
 }

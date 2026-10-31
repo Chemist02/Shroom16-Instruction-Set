@@ -229,7 +229,7 @@ int main(int argc, char *argv[]) {
 	// Current line of file.
 	std::string line;
 	// Keeps track of line number.
-	unsigned int lineNumber = 0;
+	int16_t lineNumber = 0;
 	// List of plaintext instructions which is filled if we do a binary dump.
 	std::vector<std::string> instructionLines;
 	while (getline(sourceFile, line)) {
@@ -267,6 +267,10 @@ int main(int argc, char *argv[]) {
 		catch (std::exception &e) {
 			std::cerr << "Error on line " << lineNumber << ": " << e.what() << std::endl;
 			exit(-1);
+		}
+		// We only need line nums in emulator
+		if (!doOutputSchem) {
+			translatedLine.setLineNum(lineNumber);
 		}
 		machineCode.push_back(translatedLine);
 		if (doDumpInstructions) {

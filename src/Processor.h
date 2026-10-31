@@ -2,6 +2,7 @@
 #include <iostream>
 #include <functional>
 #include <map>
+#include <set>
 #include <time.h>
 #include <random>
 #include <string>
@@ -20,10 +21,16 @@ public:
 	static WORD getCurrentOutputNumber();
 	static bool isWaitingForInput();
 	static WORD getProgramCounter();
+	static void resetProgramCounter() { programCounter = 0; }
 	static Instruction getNextInstruction();
 	static void inputNumber(const std::string &numIn);
 	static void setCurrentKeypadState(WORD state);
 	static WORD getCurrentKeypadState();
+
+	static void setIsBroken(bool isBroken) { isBroken = isBroken; }
+	static bool getIsBroken() { return isBroken; }
+	static void addBreakpoint(int16_t lineNum) { breakpoints.insert(lineNum); }
+	static void deleteBreakpoint(int16_t lineNum) { breakpoints.erase(lineNum); }
 		
 	static WORD signExtendToWord(WORD value, unsigned int numOfBitsInValue);
 
@@ -94,7 +101,11 @@ private:
 	static bool programHasCrashed;
 	// Maps 6 bit opcodes into instruction functions.
 	static const std::map<unsigned int, std::function<void(BYTE, BYTE, BYTE, BYTE, WORD, WORD)> > 
-	opcodeToInstructionMap;
+		opcodeToInstructionMap;
+	// True if we are at a breakpoint.
+	static bool isBroken;
+	// Keeps track of which lines we should stop on for debugger.
+	static std::set<int16_t> breakpoints;
 };
 
 #endif

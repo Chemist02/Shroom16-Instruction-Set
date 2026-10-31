@@ -66,7 +66,14 @@ void Instruction::setBitsInRange(unsigned int lower, unsigned int upper, unsigne
 
 // Output the raw data in bits to the specified output file stream. Requires file stream to be valid.
 void Instruction::writeToFile(std::ofstream &out) const {
+#if 0
 	for (unsigned int i = 0; i < (unsigned int)(INSTRUCTION_SIZE / BYTE_SIZE); i++) {
 		out.put((BYTE)(this->bits >> (BYTE_SIZE * i)));
+
+	}
+#endif
+	out.write(reinterpret_cast<const char*>(&this->bits), sizeof(this->bits));
+	if (this->lineNum > -1) {
+		out.write(reinterpret_cast<const char*>(&this->lineNum), sizeof(this->lineNum));
 	}
 }

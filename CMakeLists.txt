@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(Shroom16 VERSION 1.0)
 
 # specify the minimum C++ standard.
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # add shroomasm executable, with all of its source files.
@@ -25,6 +25,7 @@ add_executable(shroomemu
 	src/DataMemory.cpp
 	src/PixelScreen.cpp
 	src/Processor.cpp
+	src/PlatformSpecificAPIs.cpp
 )
 
 # add zlib library to the project.

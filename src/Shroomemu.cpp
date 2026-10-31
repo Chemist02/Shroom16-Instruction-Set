@@ -21,8 +21,12 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <thread>
+#include <mutex>
+
 #include "Processor.h"
 #include "Page437OutputScreen.h"
+#include "PlatformSpecificAPIs.h"
 
 #define BACKSPACE 8
 
@@ -33,7 +37,16 @@
 #define ZHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Z)
 #define XHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X)
 
-void runNoGUI(bool doStepMode, float minTimeBetweenInstructions) {
+std::mutex processorMutex;
+bool doForceNextInstructionWhileBroken = false;
+bool doForceKillCommandThread = false;
+
+void forceKillCommandThread() {
+	doForceKillCommandThread = true;
+	closeStdIn();
+}
+
+void runNoGUI(float minTimeBetweenInstructions) {
 }
 
 void drawNormalViewLabels(Page437OutputScreen &screen) {
@@ -229,15 +242,13 @@ WORD getKeypadState() {
 	return state;
 }
 
-void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
+void runGUI(float minTimeBetweenInstructions) {
 	// Create window.
 	sf::RenderWindow window(sf::VideoMode({516u, 516u}), "Shroom16 Emulator");
 	// Create output screen to storee characters.
 	Page437OutputScreen screen(43u, 43u, "assets/font.png");
 	// 0 iff we're in normal view, 1 iff we're in memory view.
 	unsigned int currentPageState = 0u;
-	// Should we advance to the next step of the program, used to step mode.
-	bool advanceToNextStep = false;
 	// Clock to keep track of how many second sprogram has been running.
 	sf::Clock clock;
 	// Time of last instruction execution.
@@ -245,6 +256,8 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 	// Current num in text.
 	std::string numInText = "";
 	while (window.isOpen()) {
+		std::lock_guard<std::mutex> lock(processorMutex);
+
 		// Check for events.
 		while (const std::optional event = window.pollEvent()) {
 			// Close window if 'X' is pressed.
@@ -254,11 +267,6 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 			
 			// Check for key presses.
 			if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-				// Handle stepping.
-				if (keyPressed->scancode == sf::Keyboard::Scancode::Space) {
-					advanceToNextStep = true;
-				}
-
 				// Handle page switching.
 				if (keyPressed->scancode == sf::Keyboard::Scancode::Num1) {
 					currentPageState = 0u;
@@ -277,7 +285,7 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 
 			// Check for text input.
 			const auto* textEntered = event->getIf<sf::Event::TextEntered>();
-			if (textEntered && currentPageState == 0u && Processor::isWaitingForInput()) {
+			if (textEntered && currentPageState == 0u && Processor::isWaitingForInput() && !Processor::getIsBroken()) {
 				if (textEntered->unicode == BACKSPACE && numInText.size() > 0) {
 					numInText.pop_back();
 				}
@@ -316,17 +324,16 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 		}
 
 		// Execute the next task.
-		if (doStepMode) {
-			if (advanceToNextStep) {
-				Processor::runNextTask();
-				advanceToNextStep = false;
+		if ((clock.getElapsedTime() - timeOfLastInstructionExecution).asSeconds() >= minTimeBetweenInstructions) {
+			if (Processor::getIsBroken() && doForceNextInstructionWhileBroken) {
+				Processor::setIsBroken(false);
 			}
-		}
-		else {
-			if ((clock.getElapsedTime() - timeOfLastInstructionExecution).asSeconds() >= minTimeBetweenInstructions) {
-				Processor::runNextTask();
-				timeOfLastInstructionExecution = clock.getElapsedTime();
+			Processor::runNextTask();
+			if (doForceNextInstructionWhileBroken) {
+				Processor::setIsBroken(true);
+				doForceNextInstructionWhileBroken = false;
 			}
+			timeOfLastInstructionExecution = clock.getElapsedTime();
 		}
 
 		// Update the window with the current screen buffer.
@@ -335,31 +342,125 @@ void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 		screen.flushScreenBuffer();
 	}
 
+	forceKillCommandThread();
+
+}
+
+// Debugger that runs on its own thread getting input from stdin.
+void runCommandLoop() {
+	std::string rawInput;
+	std::cout << "Shroomemu command console (type 'help' for command list):" << std::endl;
+	while (true) {
+		if (doForceKillCommandThread) {
+			return;
+		}
+
+		std::cout << ">> ";
+		std::cin >> rawInput;
+
+		if (doForceKillCommandThread) {
+			return;
+		}
+
+		std::vector<std::string> command;
+		std::stringstream commandStream(rawInput);
+		std::string fragment;
+		while (commandStream >> fragment) {
+			command.push_back(fragment);
+		}
+
+		if (command.size() == 0) {
+			continue;
+		}
+
+		std::lock_guard<std::mutex> lock(processorMutex);
+		if (command[0] == "help") {
+		
+		}
+		else if (command[0] == "break") {
+			if (command.size() != 2) {
+				std::cout << "'break' expects exactly one argument" << std::endl;
+				continue;
+			}
+
+			try {
+				Processor::addBreakpoint(std::stoi(command[1]));
+			}
+			catch (std::exception &e) { 
+				std::cerr << "Error: break command expects single line number." << std::endl;
+				continue;
+			}
+		}
+		else if (command[0] == "next") {
+			if (command.size() != 1) {
+				std::cout << "'next' expects no arguments" << std::endl;
+				continue;
+			}
+			doForceNextInstructionWhileBroken = true;
+		}
+		else if (command[0] == "pause") {
+			if (command.size() != 1) {
+				std::cout << "'pause' expects no arguments" << std::endl;
+				continue;
+			}
+			Processor::setIsBroken(true);
+		}
+		else if (command[0] == "continue") {
+			if (command.size() != 1) {
+				std::cout << "'continue' expects no arguments" << std::endl;
+				continue;
+			}
+			Processor::setIsBroken(false);
+		}
+		else if (command[0] == "rewind") {
+			if (command.size() != 1) {
+				std::cout << "'rewind' expects no arguments" << std::endl;
+				continue;
+			}
+			Processor::setIsBroken(true);
+			Processor::resetProgramCounter();
+		}
+		else if (command[0] == "delete") {
+			if (command.size() != 2) {
+				std::cout << "'delete' expects exactly one argument" << std::endl;
+				continue;
+			}
+		
+			try {
+				Processor::deleteBreakpoint(std::stoi(command[1]));
+			}
+			catch (std::exception &e) { 
+				std::cerr << "Error: delete command expects single line number." << std::endl;
+				continue;
+			}
+		}
+		else {
+			std::cout << "Unknown command " << command[0] << "; type 'help' for list of commands.";
+		}
+	}
 }
 
 int main(int argc, char *argv[]) {
 	// Ensure we were given at least an input file as an argument, if not end program.
 	std::string usageMessage = " <input program> <optional arguments>\nOptional arguments:\n -t <time>       "
 		"Specify minimum time between instructions (in seconds).\n -n              Run in no-gui mode.\n"
-		" -s              Run in step mode.";
+		" -b              Break immediately upon starting program.";
 	if (argc < 2) {
 		std::cerr << "Error: invalid number of arguments!\nUsage: " << argv[0] << usageMessage << std::endl;
 		return -1;
 	}
 
-	// Check if we're in step mode and/or nogui mode, or if a min time between instructions was given.
-	// Step mode means that we wait for the enter key to be pressed between each instruction.
-	bool stepMode = false;
+	// Check if we're in nogui mode, or if a min time between instructions was given.
 	// No GUI mode disables the display window such that the only thing shown are register values output with the
 	// ?out interrupt, straight into stdout.
 	bool noGUIMode = false;
 	float minTimeBetweenInstructions = 0.0;
 	for (int i = 2; i < argc; i++) {
-		if (!strcmp(argv[i], "-s")) {
-			stepMode = true;
-		}
-		else if (!strcmp(argv[i], "-n")) {
+		if (!strcmp(argv[i], "-n")) {
 			noGUIMode = true;
+		}
+		else if (!strcmp(argv[i], "-b")) {
+			Processor::setIsBroken(true);
 		}
 		else if (!strcmp(argv[i], "-t")) {
 			try {
@@ -395,13 +496,16 @@ int main(int argc, char *argv[]) {
 	// Now that we know we have a good file, load instructions into instruction memory.
 	Processor::loadMachineCode(codeFile);
 
+	std::thread commandThread(runCommandLoop);
+
 	// Actually run program depending on settings.
 	if (!noGUIMode) {
-		runGUI(stepMode, minTimeBetweenInstructions);
+		runGUI(minTimeBetweenInstructions);
 	}
 	else {
-		runNoGUI(stepMode, minTimeBetweenInstructions);
+		runNoGUI(minTimeBetweenInstructions);
 	}
+	commandThread.join();
 
 	return 0;
 }
