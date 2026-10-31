@@ -27,7 +27,7 @@ public:
 	static void setCurrentKeypadState(WORD state);
 	static WORD getCurrentKeypadState();
 
-	static void setIsBroken(bool isBroken) { isBroken = isBroken; }
+	static void setIsBroken(bool isBroken) { Processor::isBroken = isBroken; }
 	static bool getIsBroken() { return isBroken; }
 	static void addBreakpoint(int16_t lineNum) { breakpoints.insert(lineNum); }
 	static void deleteBreakpoint(int16_t lineNum) { breakpoints.erase(lineNum); }

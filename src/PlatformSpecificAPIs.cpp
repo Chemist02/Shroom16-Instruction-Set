@@ -9,7 +9,7 @@
 
 void closeStdIn() {
 #if defined(_WIN32)
-	CloseHandle(GetStdHandle(STD_INPUT_HANDLE));
+	CancelIoEx(GetStdHandle(STD_INPUT_HANDLE), NULL);
 #elif defined(__unix__) || defined(__APPLE__) || defined(_POSIX_VERSION)
 	close(0);
 #endif

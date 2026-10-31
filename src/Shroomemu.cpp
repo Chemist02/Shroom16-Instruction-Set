@@ -256,7 +256,6 @@ void runGUI(float minTimeBetweenInstructions) {
 	// Current num in text.
 	std::string numInText = "";
 	while (window.isOpen()) {
-		std::lock_guard<std::mutex> lock(processorMutex);
 
 		// Check for events.
 		while (const std::optional event = window.pollEvent()) {
@@ -267,6 +266,7 @@ void runGUI(float minTimeBetweenInstructions) {
 			
 			// Check for key presses.
 			if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+				std::lock_guard<std::mutex> lock(processorMutex);
 				// Handle page switching.
 				if (keyPressed->scancode == sf::Keyboard::Scancode::Num1) {
 					currentPageState = 0u;
@@ -276,7 +276,7 @@ void runGUI(float minTimeBetweenInstructions) {
 				}
 
 				// Handle number input.
-				if (keyPressed->scancode == sf::Keyboard::Scancode::Enter) {
+				if (keyPressed->scancode == sf::Keyboard::Scancode::Enter && Processor::isWaitingForInput()) {
 					Processor::inputNumber(numInText);
 					numInText = "";
 
@@ -285,18 +285,24 @@ void runGUI(float minTimeBetweenInstructions) {
 
 			// Check for text input.
 			const auto* textEntered = event->getIf<sf::Event::TextEntered>();
-			if (textEntered && currentPageState == 0u && Processor::isWaitingForInput() && !Processor::getIsBroken()) {
-				if (textEntered->unicode == BACKSPACE && numInText.size() > 0) {
-					numInText.pop_back();
-				}
-				else if (textEntered->unicode >= 32 && textEntered->unicode < 128) {
-					numInText += static_cast<char>(textEntered->unicode);
+			{
+				std::lock_guard<std::mutex> lock(processorMutex);
+				if (textEntered && currentPageState == 0u && Processor::isWaitingForInput() && !Processor::getIsBroken()) {
+					if (textEntered->unicode == BACKSPACE && numInText.size() > 0) {
+						numInText.pop_back();
+					}
+					else if (textEntered->unicode >= 32 && textEntered->unicode < 128) {
+						numInText += static_cast<char>(textEntered->unicode);
+					}
 				}
 			}
 		}
 
 		// Handle keypad input.
+		{
+		std::lock_guard<std::mutex> lock(processorMutex);
 		Processor::setCurrentKeypadState(getKeypadState());
+		}
 
 		// Draw input string.
 		if (currentPageState == 0u) {
@@ -325,6 +331,7 @@ void runGUI(float minTimeBetweenInstructions) {
 
 		// Execute the next task.
 		if ((clock.getElapsedTime() - timeOfLastInstructionExecution).asSeconds() >= minTimeBetweenInstructions) {
+			std::lock_guard<std::mutex> lock(processorMutex);
 			if (Processor::getIsBroken() && doForceNextInstructionWhileBroken) {
 				Processor::setIsBroken(false);
 			}
@@ -340,6 +347,7 @@ void runGUI(float minTimeBetweenInstructions) {
 		screen.updateWindow(window);
 		// Clear out old screen buffer.
 		screen.flushScreenBuffer();
+		std::this_thread::yield();
 	}
 
 	forceKillCommandThread();
@@ -356,7 +364,7 @@ void runCommandLoop() {
 		}
 
 		std::cout << ">> ";
-		std::cin >> rawInput;
+		std::getline(std::cin, rawInput);
 
 		if (doForceKillCommandThread) {
 			return;
@@ -435,7 +443,7 @@ void runCommandLoop() {
 			}
 		}
 		else {
-			std::cout << "Unknown command " << command[0] << "; type 'help' for list of commands.";
+			std::cout << "Unknown command " << command[0] << "; type 'help' for list of commands." << std::endl;
 		}
 	}
 }
@@ -460,6 +468,7 @@ int main(int argc, char *argv[]) {
 			noGUIMode = true;
 		}
 		else if (!strcmp(argv[i], "-b")) {
+			std::cout << "breaking" << std::endl;
 			Processor::setIsBroken(true);
 		}
 		else if (!strcmp(argv[i], "-t")) {

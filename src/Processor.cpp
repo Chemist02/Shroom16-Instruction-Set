@@ -161,8 +161,11 @@ void Processor::runNextTask() {
 	// Check if at breakpoint.
 	int16_t lineNum = Processor::instructionMemory[programCounter].getLineNum();
 	if (breakpoints.contains(lineNum)) {
-		std::cout << "Hit breakpoint at line " << lineNum << std::endl;
+		std::cout << "\nHit breakpoint at line " << lineNum << "\n>>" << std::endl;
 		isBroken = true;
+	}
+	else if (isBroken) {
+		std::cout << "\nStepped to line " << lineNum << "\n>>" << std::endl;
 	}
 }
 
