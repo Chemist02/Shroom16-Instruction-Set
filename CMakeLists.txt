@@ -16,9 +16,9 @@ add_executable(shroomasm
 	src/InstructionWriter.cpp
 )
 
-# add shroomvm executable, with all of its source files.
-add_executable(shroomvm
-	src/Shroomvm.cpp
+# add shroomemu executable, with all of its source files.
+add_executable(shroomemu
+	src/Shroomemu.cpp
 	src/Instruction.cpp	
 	src/Page437OutputScreen.cpp
 	src/RegisterFile.cpp
@@ -38,7 +38,7 @@ add_subdirectory(lib/SFML-3.1.0)
 target_link_libraries(shroomasm zlibstatic)
 
 # add link directory so that linker can find sfml sources.
-target_link_libraries(shroomvm sfml-graphics)
+target_link_libraries(shroomemu sfml-graphics)
 
 # cmake chooses to rename this file for some reason, which results in the 
 # program not being able to locate it. Thus, let's anme it back.
@@ -53,7 +53,7 @@ target_include_directories(shroomasm PUBLIC
 	"${PROJECT_SOURCE_DIR}/lib/zlib-1.3.2"
 )
 
-target_include_directories(shroomvm PUBLIC
+target_include_directories(shroomemu PUBLIC
 	"${PROJECT_BINARY_DIR}"
 	"${PROJECT_SOURCE_DIR}/lib/SFML-3.1.0"
 )

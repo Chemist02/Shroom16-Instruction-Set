@@ -286,9 +286,9 @@ int main(int argc, char *argv[]) {
 
 	// Now that we have our machine code, check if we should make a shroom16 binary or a .schem for use in 
 	// Minecraft.
-	// Handle case for virtual machine.
+	// Handle case for emulator.
 	if (!doOutputSchem) {
-		// Open output c++ file stream for creating assembled program for the virtual machine.
+		// Open output c++ file stream for creating assembled program for the emulator machine.
 		std::ofstream outFile(outFileName, std::ios::binary);
 		if (!outFile.good()) {
 			std::cerr << "Error: Issue opening output file " << outFileName << "!\n";

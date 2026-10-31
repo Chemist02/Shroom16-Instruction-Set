@@ -11,7 +11,7 @@
 #ifndef PROCESSOR_H
 #define PROCESSOR_H
 
-// This class is the glue that holds the virtual machine together. It contains the instruction memory and is responible
+// This class is the glue that holds the emulator together. It contains the instruction memory and is responible
 // for actually executing instructions as we run our program. This is essentially what the main function is going to be
 // interacting with.
 class Processor {

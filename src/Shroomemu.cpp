@@ -231,7 +231,7 @@ WORD getKeypadState() {
 
 void runGUI(bool doStepMode, float minTimeBetweenInstructions) {
 	// Create window.
-	sf::RenderWindow window(sf::VideoMode({516u, 516u}), "Shroom16 Virtual Machine");
+	sf::RenderWindow window(sf::VideoMode({516u, 516u}), "Shroom16 Emulator");
 	// Create output screen to storee characters.
 	Page437OutputScreen screen(43u, 43u, "assets/font.png");
 	// 0 iff we're in normal view, 1 iff we're in memory view.
