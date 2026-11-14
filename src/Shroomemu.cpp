@@ -38,15 +38,48 @@
 #define XHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X)
 
 std::mutex processorMutex;
+bool killed = true;
 bool doForceNextInstructionWhileBroken = false;
 bool doForceKillCommandThread = false;
+float minTimeBetweenInstructions = 0.0;
 
 void forceKillCommandThread() {
 	doForceKillCommandThread = true;
 	closeStdIn();
 }
 
-void runNoGUI(float minTimeBetweenInstructions) {
+void runNoGUI() {
+	// Clock to keep track of how many second sprogram has been running.
+	sf::Clock clock;
+	// Time of last instruction execution.
+	sf::Time timeOfLastInstructionExecution = clock.getElapsedTime();
+	bool printedInputText = false;
+	while (!killed) {
+		// Execute the next task.
+		if ((clock.getElapsedTime() - timeOfLastInstructionExecution).asSeconds() >= minTimeBetweenInstructions) {
+			std::lock_guard<std::mutex> lock(processorMutex);
+			if (Processor::getIsBroken() && doForceNextInstructionWhileBroken) {
+				Processor::setIsBroken(false);
+			}
+			Processor::runNextTask();
+
+			if (!printedInputText && Processor::isWaitingForInput()) {
+				std::cout << "?in interrupt called, waiting for 'sendinput'... " << std::end;
+				printedInputText = true;
+			}
+			else if (!Processor::isWaitingForInput()) {
+				printedInputText = false;
+			}
+
+			if (doForceNextInstructionWhileBroken) {
+				Processor::setIsBroken(true);
+				doForceNextInstructionWhileBroken = false;
+			}
+			timeOfLastInstructionExecution = clock.getElapsedTime();
+		}
+	}
+
+	forceKillCommandThread();
 }
 
 void drawNormalViewLabels(Page437OutputScreen &screen) {
@@ -242,7 +275,7 @@ WORD getKeypadState() {
 	return state;
 }
 
-void runGUI(float minTimeBetweenInstructions) {
+void runGUI() {
 	// Create window.
 	sf::RenderWindow window(sf::VideoMode({516u, 516u}), "Shroom16 Emulator");
 	// Create output screen to storee characters.
@@ -255,8 +288,7 @@ void runGUI(float minTimeBetweenInstructions) {
 	sf::Time timeOfLastInstructionExecution = clock.getElapsedTime();
 	// Current num in text.
 	std::string numInText = "";
-	while (window.isOpen()) {
-
+	while (window.isOpen() && !killed) {
 		// Check for events.
 		while (const std::optional event = window.pollEvent()) {
 			// Close window if 'X' is pressed.
@@ -406,6 +438,13 @@ void runCommandLoop() {
 			}
 			doForceNextInstructionWhileBroken = true;
 		}
+		else if (command[0] == "kill") {
+			if (command.size() != 1) {
+				std::cout << "'kill' expects no arguments" << std::endl;
+				continue;
+			}
+			killed = true;
+		}
 		else if (command[0] == "pause") {
 			if (command.size() != 1) {
 				std::cout << "'pause' expects no arguments" << std::endl;
@@ -428,6 +467,32 @@ void runCommandLoop() {
 			Processor::setIsBroken(true);
 			Processor::resetProgramCounter();
 		}
+		else if (command[0] == "regs") {
+			if (command.size() != 1) {
+				std::cout << "'regs' expects no arguments" << std::endl;
+				continue;
+			}
+			std::cout << "REGISTER VALUES" << std::endl;
+			for (const auto& [regName, id] : registerToBinaryMap) {
+				std::ostringstream hexStream;
+				hexStream << std::hex << RegisterFile::read(id);
+				std::cout << regName << ": " << hexStream << std::end;;
+			}
+		}
+		else if (command[0] == "mem") {
+			if (command.size() != 2) {
+				std::cout << "'mem' expects exactly one argument representing word number" << std::endl;
+				continue;
+			}
+		
+			try {
+				std::cout << "0x" << hexStream.str() << std::endl;
+			}
+			catch (std::exception &e) { 
+				std::cerr << "Error: delete command expects single word number." << std::endl;
+				continue;
+			}
+		}
 		else if (command[0] == "delete") {
 			if (command.size() != 2) {
 				std::cout << "'delete' expects exactly one argument" << std::endl;
@@ -441,6 +506,36 @@ void runCommandLoop() {
 				std::cerr << "Error: delete command expects single line number." << std::endl;
 				continue;
 			}
+		}
+		else if (command[0] == "time") {
+			if (command.size() != 2) {
+				std::cout << "'time' expects exactly one argument" << std::endl;
+				continue;
+			}
+		
+			try {
+				 minTimeBetweenInstructions = std::stof(command[1]);
+			}
+			catch (std::exception &e) { 
+				std::cerr << "Error: delete command expects single line number." << std::endl;
+				continue;
+			}
+			
+		}
+		else if (command[0] == "sendinput") {
+			if (command.size() != 2) {
+				std::cout << "'sendinput' expects exactly one argument" << std::endl;
+				continue;
+			}
+		
+			try {
+				Processor::inputNumber(command[1]);
+			}
+			catch (std::exception &e) { 
+				std::cerr << "Error: " << e.what() << std::endl;
+				continue;
+			}
+			
 		}
 		else {
 			std::cout << "Unknown command " << command[0] << "; type 'help' for list of commands." << std::endl;
@@ -462,7 +557,6 @@ int main(int argc, char *argv[]) {
 	// No GUI mode disables the display window such that the only thing shown are register values output with the
 	// ?out interrupt, straight into stdout.
 	bool noGUIMode = false;
-	float minTimeBetweenInstructions = 0.0;
 	for (int i = 2; i < argc; i++) {
 		if (!strcmp(argv[i], "-n")) {
 			noGUIMode = true;
@@ -509,10 +603,10 @@ int main(int argc, char *argv[]) {
 
 	// Actually run program depending on settings.
 	if (!noGUIMode) {
-		runGUI(minTimeBetweenInstructions);
+		runGUI();
 	}
 	else {
-		runNoGUI(minTimeBetweenInstructions);
+		runNoGUI();
 	}
 	commandThread.join();
 
