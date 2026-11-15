@@ -25,6 +25,7 @@
 #include <mutex>
 
 #include "Processor.h"
+#include "OpcodeRegisterMaps.h"
 #include "Page437OutputScreen.h"
 #include "PlatformSpecificAPIs.h"
 
@@ -38,7 +39,7 @@
 #define XHELD sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X)
 
 std::mutex processorMutex;
-bool killed = true;
+bool killed = false;
 bool doForceNextInstructionWhileBroken = false;
 bool doForceKillCommandThread = false;
 float minTimeBetweenInstructions = 0.0;
@@ -64,7 +65,7 @@ void runNoGUI() {
 			Processor::runNextTask();
 
 			if (!printedInputText && Processor::isWaitingForInput()) {
-				std::cout << "?in interrupt called, waiting for 'sendinput'... " << std::end;
+				std::cout << "?in interrupt called, waiting for 'sendinput'... " << std::endl;
 				printedInputText = true;
 			}
 			else if (!Processor::isWaitingForInput()) {
@@ -476,7 +477,7 @@ void runCommandLoop() {
 			for (const auto& [regName, id] : registerToBinaryMap) {
 				std::ostringstream hexStream;
 				hexStream << std::hex << RegisterFile::read(id);
-				std::cout << regName << ": " << hexStream << std::end;;
+				std::cout << regName << ": " << hexStream.str() << std::endl;
 			}
 		}
 		else if (command[0] == "mem") {
@@ -486,6 +487,8 @@ void runCommandLoop() {
 			}
 		
 			try {
+				std::ostringstream hexStream;
+				hexStream << std::hex << RegisterFile::read(std::stoi(command[1]));
 				std::cout << "0x" << hexStream.str() << std::endl;
 			}
 			catch (std::exception &e) { 
@@ -608,6 +611,7 @@ int main(int argc, char *argv[]) {
 	else {
 		runNoGUI();
 	}
+	Page437OutputScreen::characters.clear();
 	commandThread.join();
 
 	return 0;

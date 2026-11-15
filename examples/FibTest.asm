@@ -66,7 +66,7 @@ jmp main
 	jr $ca
 
 :main
-	addi $g0 $zero 10
+	?in $g0
 	addi $sp $sp 1
 	sw $g0 $sp -1
 	call recFib

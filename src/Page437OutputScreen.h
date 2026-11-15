@@ -37,7 +37,7 @@ public:
 
 	// Draw the screen buffer vector to a SFML window.
 	void updateWindow(sf::RenderWindow &window);
-private:
+public:
 	// Vector of all of the code page 437 character texture from the source image.
 	static std::vector<sf::Texture> characters;
 	// Vector storing all of the sprites making up the screen. Is not actually displayed until updateWindow() is 

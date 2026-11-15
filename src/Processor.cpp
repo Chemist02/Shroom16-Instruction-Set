@@ -336,6 +336,7 @@ void Processor::IN(BYTE rdest, BYTE, BYTE, BYTE, WORD, WORD) {
 
 void Processor::OUT(BYTE, BYTE rreada, BYTE, BYTE, WORD, WORD) {
 	Processor::currentOutputNumber = RegisterFile::read(rreada);
+	std::cout << "Out: " << Processor::currentOutputNumber << std::endl;
 }
 
 void Processor::END(BYTE, BYTE, BYTE, BYTE, WORD, WORD) {
