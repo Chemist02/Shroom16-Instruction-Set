@@ -74,4 +74,3 @@ jmp main
 	addi $sp $sp -1
 
 	?out $g0
-	?in $g0

@@ -351,7 +351,9 @@ void Processor::OUT(BYTE, BYTE rreada, BYTE, BYTE, WORD, WORD) {
 }
 
 void Processor::END(BYTE, BYTE, BYTE, BYTE, WORD, WORD) {
-	exit(0);
+	std::cout << "End of program" << std::endl;
+	// Prevents runNextTask from doing any work.
+	Processor::programCounter = Processor::instructionMemory.size();
 }
 
 void Processor::CHARSET(BYTE, BYTE rreada, BYTE, BYTE, WORD immed, WORD) {

@@ -21,16 +21,20 @@ public:
 	static WORD getCurrentOutputNumber();
 	static bool isWaitingForInput();
 	static WORD getProgramCounter();
-	static void resetProgramCounter() { programCounter = 0; }
 	static Instruction getNextInstruction();
 	static void inputNumber(const std::string &numIn);
 	static void setCurrentKeypadState(WORD state);
 	static WORD getCurrentKeypadState();
+	static int getNumOfInstructions() { return Processor::instructionMemory.size(); }
 
+	// For allowing program control via debugger.
 	static void setIsBroken(bool isBroken) { Processor::isBroken = isBroken; }
 	static bool getIsBroken() { return isBroken; }
 	static void addBreakpoint(int16_t lineNum) { breakpoints.insert(lineNum); }
 	static void deleteBreakpoint(int16_t lineNum) { breakpoints.erase(lineNum); }
+	// For 'rewind'
+	static void resetProgramCounter() { programCounter = 0; }
+	// Returns -1 if at end of program.
 	static int getCurrentLineNumber() { return programCounter < Processor::instructionMemory.size() ?
 		Processor::instructionMemory[programCounter].getLineNum() : -1; }
 		

@@ -59,6 +59,7 @@ void runNoGUI() {
 		// Execute the next task.
 		if ((clock.getElapsedTime() - timeOfLastInstructionExecution).asSeconds() >= minTimeBetweenInstructions) {
 			std::lock_guard<std::mutex> lock(processorMutex);
+			// Logic for 'next' debugger command. Forces advancement by exactly one instruction.
 			if (Processor::getIsBroken() && doForceNextInstructionWhileBroken) {
 				Processor::setIsBroken(false);
 			}
@@ -72,6 +73,7 @@ void runNoGUI() {
 				printedInputText = false;
 			}
 
+			// End of 'next'
 			if (doForceNextInstructionWhileBroken) {
 				Processor::setIsBroken(true);
 				doForceNextInstructionWhileBroken = false;
@@ -194,7 +196,10 @@ void drawNormalModeData(Page437OutputScreen &screen) {
 	std::ostringstream hexStream;
 	hexStream << std::hex << Processor::getProgramCounter();
 	screen.drawStringHoriz(0u, 39u, 3u, hexStream.str(), sf::Color::Yellow);
-	screen.drawStringHoriz(4u, 39u, 32u, Processor::getNextInstruction().formattedAsString(), sf::Color::Yellow);
+	// Only draw next instruction if the program is still running
+	if (Processor::getProgramCounter() < Processor::getNumOfInstructions()) {
+		screen.drawStringHoriz(4u, 39u, 32u, Processor::getNextInstruction().formattedAsString(), sf::Color::Yellow);
+	}
 }
 
 
@@ -365,10 +370,12 @@ void runGUI() {
 		// Execute the next task.
 		if ((clock.getElapsedTime() - timeOfLastInstructionExecution).asSeconds() >= minTimeBetweenInstructions) {
 			std::lock_guard<std::mutex> lock(processorMutex);
+			// Logic for 'next' debugger command. Forces advancement by exactly one instruction.
 			if (Processor::getIsBroken() && doForceNextInstructionWhileBroken) {
 				Processor::setIsBroken(false);
 			}
 			Processor::runNextTask();
+			// End of 'next'
 			if (doForceNextInstructionWhileBroken) {
 				Processor::setIsBroken(true);
 				doForceNextInstructionWhileBroken = false;
