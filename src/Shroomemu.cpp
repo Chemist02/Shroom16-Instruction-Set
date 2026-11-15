@@ -416,9 +416,20 @@ void runCommandLoop() {
 
 		std::lock_guard<std::mutex> lock(processorMutex);
 		if (command[0] == "help") {
-		
+			std::cout << "break|b <line number>  add breakpoint at line number\n"
+						 "next|n                 advance to next line\n"
+						 "continue|c             advance to next breakpoint\n"
+						 "pause|p                break program at its current location\n"
+						 "kill                   close emulator\n"
+						 "rewind                 reset program counter\n"
+						 "regs                   print contents of all registers\n"
+						 "mem <address>          print value stored at certain memory address\n"
+					 	 "delete|d <line number> delete breakpoint at line number\n"
+						 "time <time in seconds> set time between instructions to minimum value\n"
+						 "sendinput <number>     send value to respond to ?in interrupt\n"
+						 "where                  print current program counter and line number\n";
 		}
-		else if (command[0] == "break") {
+		else if (command[0] == "break" || command[0] == "b") {
 			if (command.size() != 2) {
 				std::cout << "'break' expects exactly one argument" << std::endl;
 				continue;
@@ -432,7 +443,7 @@ void runCommandLoop() {
 				continue;
 			}
 		}
-		else if (command[0] == "next") {
+		else if (command[0] == "next" || command[0] == "n") {
 			if (command.size() != 1) {
 				std::cout << "'next' expects no arguments" << std::endl;
 				continue;
@@ -446,14 +457,14 @@ void runCommandLoop() {
 			}
 			killed = true;
 		}
-		else if (command[0] == "pause") {
+		else if (command[0] == "pause" || command[0] == "p") {
 			if (command.size() != 1) {
 				std::cout << "'pause' expects no arguments" << std::endl;
 				continue;
 			}
 			Processor::setIsBroken(true);
 		}
-		else if (command[0] == "continue") {
+		else if (command[0] == "continue" || command[0] == "c") {
 			if (command.size() != 1) {
 				std::cout << "'continue' expects no arguments" << std::endl;
 				continue;
@@ -496,7 +507,7 @@ void runCommandLoop() {
 				continue;
 			}
 		}
-		else if (command[0] == "delete") {
+		else if (command[0] == "delete" || command[0] == "d") {
 			if (command.size() != 2) {
 				std::cout << "'delete' expects exactly one argument" << std::endl;
 				continue;
@@ -538,8 +549,17 @@ void runCommandLoop() {
 				std::cerr << "Error: " << e.what() << std::endl;
 				continue;
 			}
-			
 		}
+		else if (command[0] == "where") {
+			if (command.size() != 1) {
+				std::cout << "'sendinput' expects no arguments" << std::endl;
+				continue;
+			}
+
+			std::cout << "Program counter: " << Processor::getProgramCounter() << std::endl;
+			std::cout << "Line number: " << Processor::getCurrentLineNumber() << std::endl;
+		}
+
 		else {
 			std::cout << "Unknown command " << command[0] << "; type 'help' for list of commands." << std::endl;
 		}

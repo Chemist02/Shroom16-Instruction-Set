@@ -31,6 +31,8 @@ public:
 	static bool getIsBroken() { return isBroken; }
 	static void addBreakpoint(int16_t lineNum) { breakpoints.insert(lineNum); }
 	static void deleteBreakpoint(int16_t lineNum) { breakpoints.erase(lineNum); }
+	static int getCurrentLineNumber() { return programCounter < Processor::instructionMemory.size() ?
+		Processor::instructionMemory[programCounter].getLineNum() : -1; }
 		
 	static WORD signExtendToWord(WORD value, unsigned int numOfBitsInValue);
 

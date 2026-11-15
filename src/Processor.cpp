@@ -109,6 +109,10 @@ void Processor::inputNumber(const std::string &numIn) {
 		RegisterFile::write(Processor::inputResultRegID, (WORD)std::stoi(numIn));
 		Processor::waitingForInput = false;
 		Processor::programCounter++;
+
+		if (Processor::programCounter >= Processor::instructionMemory.size()) {
+			std::cout << "End of program" << std::endl;
+		}
 	}
 }
 
@@ -126,7 +130,10 @@ WORD Processor::getCurrentKeypadState() {
 // entered).
 void Processor::runNextTask() {
 	// If we're waiting for input, are at a breakpoint, or the program has crashed, don't do anything.
-	if (waitingForInput || programHasCrashed || isBroken) {
+	if (waitingForInput || 
+	    programHasCrashed || 
+		isBroken || 
+		Processor::programCounter >= Processor::instructionMemory.size()) {
 		return;
 	}
 
@@ -156,6 +163,10 @@ void Processor::runNextTask() {
 	// Increment program counter iff we're not waiting for input.
 	if (!Processor::waitingForInput) {
 		Processor::programCounter++;
+	}
+
+	if (Processor::programCounter >= Processor::instructionMemory.size()) {
+		std::cout << "End of program" << std::endl;
 	}
 
 	// Check if at breakpoint.
